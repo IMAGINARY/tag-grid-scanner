@@ -252,15 +252,25 @@ def keystone(img):
 
 mtx, dist = load_coefficients("camera-profile.yml")
 
-capture = cv2.VideoCapture(0)
-# src = cv2.imread('snapshot.jpg')
 
-while True:
-    ret, src = capture.read()
+def from_camera():
+    capture = cv2.VideoCapture(0)
+
+    while True:
+        ret, src = capture.read()
+        keystone(src)
+        key = cv2.waitKey(1)
+        if key == 27:
+            break
+
+    capture.release()
+    cv2.destroyAllWindows()
+
+
+def from_file():
+    src = cv2.imread("snapshot.jpg")
     keystone(src)
-    key = cv2.waitKey(1)
-    if key == 27:
-        break
+    cv2.waitKey()
 
-capture.release()
-cv2.destroyAllWindows()
+
+from_file()
