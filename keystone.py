@@ -5,16 +5,20 @@ import numpy as np
 from utils import load_coefficients, save_coefficients
 
 BLOCK_SIZE = 4
-GRID_SIZE = (16 * BLOCK_SIZE, 16 * BLOCK_SIZE)
+GRID_SHAPE = (16, 16)
+GRID_SIZE = (GRID_SHAPE[0] * BLOCK_SIZE, GRID_SHAPE[1] * BLOCK_SIZE)
 
-frameWidth = 15.45
-frameHeight = 15.45
+frameWidth = 740
+frameHeight = 740
 framePoints = np.array(
     [[0, 0], [frameWidth, 0], [frameWidth, frameHeight], [0, frameHeight]],
     dtype=np.float32,
 )
 
-marginTRBL = (0.84, 0.84, 0.84, 0.84)
+marginTRBL = (20, 20, 20, 20)
+
+gaps = (4, 4)
+
 roiWidth = frameWidth - (marginTRBL[1] + marginTRBL[3])
 roiHeight = frameHeight - (marginTRBL[0] + marginTRBL[2])
 
@@ -64,6 +68,40 @@ def isConvex(points):
 
 def orientation(p0, p1, p2):
     return np.cross(p1 - p0, p2 - p1)[0]
+
+
+def tile_window(img, grid_x, grid_y):
+    gap_height = (img.shape[0] * gaps[0]) / roiHeight
+    img_height_with_added_gap = img.shape[0] + gap_height
+    tile_height_with_gap = img_height_with_added_gap / GRID_SHAPE[0]
+    tile_height = tile_height_with_gap - gap_height
+    y_start = min(math.floor(grid_y * tile_height_with_gap), img.shape[0] - 1)
+    y_end = min(
+        math.floor(grid_y * tile_height_with_gap + tile_height), img.shape[0] - 1
+    )
+
+    gap_width = (img.shape[1] * gaps[1]) / roiWidth
+    img_width_with_added_gap = img.shape[1] + gap_width
+    tile_width_with_gap = img_width_with_added_gap / GRID_SHAPE[1]
+    tile_width = tile_width_with_gap - gap_width
+    x_start = min(math.floor(grid_x * tile_width_with_gap), img.shape[1] - 1)
+    x_end = min(math.floor(grid_x * tile_width_with_gap + tile_width), img.shape[1] - 1)
+
+    window = img[y_start:y_end, x_start:x_end]
+
+    return window
+
+
+def reduce_tile(tile_img_gray):
+    tile_small = cv2.resize(
+        tile_img_gray,
+        (BLOCK_SIZE, BLOCK_SIZE),
+        interpolation=cv2.INTER_AREA,
+    )
+    ret, tile_small_bw = cv2.threshold(
+        tile_small, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
+    return tile_small_bw
 
 
 def keystone(img):
@@ -149,7 +187,9 @@ def keystone(img):
         H = cv2.findHomography(sourcePoints, framePoints, cv2.LMEDS)[0]
         lastH = H
 
-        scaleFactor = 30
+        scaleFactor = max(undistorted.shape[0], undistorted.shape[1]) / min(
+            frameWidth, frameHeight
+        )
         scale = np.array([[scaleFactor, 0, 0], [0, scaleFactor, 0], [0, 0, 1]])
         keytoned1 = cv2.warpPerspective(
             undistortedCopy,
@@ -162,7 +202,9 @@ def keystone(img):
             cv2.circle(keytoned1, tuple(roiPoints[i] * scaleFactor), 2, (0, 0, 255), -1)
         cv2.imshow("frame", keytoned1)
 
-        scaleFactor = 30
+        scaleFactor = max(undistorted.shape[0], undistorted.shape[1]) / min(
+            frameWidth, frameHeight
+        )
         scale = np.array([[scaleFactor, 0, 0], [0, scaleFactor, 0], [0, 0, 1]])
         keystoned2 = cv2.warpPerspective(
             undistortedCopy,
@@ -190,6 +232,25 @@ def keystone(img):
             )
 
         cv2.imshow("region of interest", keystoned2)
+
+        keystoned2_gray = cv2.cvtColor(keystoned2, cv2.COLOR_BGR2GRAY)
+
+        grid_img = np.zeros(GRID_SIZE, dtype=keystoned2_gray.dtype)
+        for grid_y in range(GRID_SHAPE[0]):
+            for grid_x in range(GRID_SHAPE[1]):
+                window = tile_window(keystoned2_gray, grid_x, grid_y)
+                tile = reduce_tile(window)
+                grid_img[
+                    grid_y * BLOCK_SIZE : (grid_y + 1) * BLOCK_SIZE,
+                    grid_x * BLOCK_SIZE : (grid_x + 1) * BLOCK_SIZE,
+                ] = tile
+
+        grid_img_big = cv2.resize(
+            grid_img,
+            (7 * grid_img.shape[0], 7 * grid_img.shape[1]),
+            interpolation=cv2.INTER_NEAREST,
+        )
+        cv2.imshow("grid_img", grid_img_big)
 
         scaleFactor = 7
         scale = np.array([[scaleFactor, 0, 0], [0, scaleFactor, 0], [0, 0, 1]])
