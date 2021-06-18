@@ -3,6 +3,8 @@ import math
 import numpy as np
 
 from utils import load_coefficients, save_coefficients
+from tags import TAGS
+
 
 BLOCK_SIZE = 4
 GRID_SHAPE = (16, 16)
@@ -52,6 +54,48 @@ print(roiPoints)
 print(lastH)
 
 
+def string_tag_to_np_tag(string_tag):
+    return np.fromstring(
+        ",".join(list(string_tag)), np.uint8, BLOCK_SIZE * BLOCK_SIZE, ","
+    ).reshape((BLOCK_SIZE, BLOCK_SIZE))
+
+
+def np_tag_to_string_tag(np_tag):
+    return "".join(str(e) for e in list(np_tag.reshape(BLOCK_SIZE * BLOCK_SIZE)))
+
+
+def string_tag_to_int(string_tag):
+    return int(string_tag, 2)
+
+
+def np_tag_to_int(np_tag):
+    np_tag_linear = np_tag.reshape(BLOCK_SIZE * BLOCK_SIZE)
+    mask = 1 << (BLOCK_SIZE * BLOCK_SIZE)
+    int_tag = 0
+    for bit in np_tag_linear:
+        mask >>= 1
+        if bit:
+            int_tag |= mask
+    return int_tag
+
+
+def create_tag_dict(string_tags):
+    dict = {}
+    for idx, string_tag in enumerate(string_tags):
+        np_tag = string_tag_to_np_tag(string_tag)
+        dict[np_tag_to_int(np_tag)] = idx
+        np_tag = np.rot90(np_tag)
+        dict[np_tag_to_int(np_tag)] = idx
+        np_tag = np.rot90(np_tag)
+        dict[np_tag_to_int(np_tag)] = idx
+        np_tag = np.rot90(np_tag)
+        dict[np_tag_to_int(np_tag)] = idx
+    return dict
+
+
+tag_dict = create_tag_dict(TAGS)
+
+
 def isConvex(points):
     if len(points) < 3:
         return True
@@ -99,9 +143,12 @@ def reduce_tile(tile_img_gray):
         interpolation=cv2.INTER_AREA,
     )
     ret, tile_small_bw = cv2.threshold(
-        tile_small, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        tile_small, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU
     )
     return tile_small_bw
+
+
+last_detected_tags = np.full(GRID_SHAPE, -1, dtype=np.int32)
 
 
 def keystone(img):
@@ -235,18 +282,25 @@ def keystone(img):
 
         keystoned2_gray = cv2.cvtColor(keystoned2, cv2.COLOR_BGR2GRAY)
 
+        global last_detected_tags
+        detected_tags = np.zeros(GRID_SHAPE, dtype=np.int32)
         grid_img = np.zeros(GRID_SIZE, dtype=keystoned2_gray.dtype)
         for grid_y in range(GRID_SHAPE[0]):
             for grid_x in range(GRID_SHAPE[1]):
                 window = tile_window(keystoned2_gray, grid_x, grid_y)
                 tile = reduce_tile(window)
+                tile_id = tag_dict.get(np_tag_to_int(tile), -1)
+                detected_tags[grid_y, grid_x] = tile_id
                 grid_img[
                     grid_y * BLOCK_SIZE : (grid_y + 1) * BLOCK_SIZE,
                     grid_x * BLOCK_SIZE : (grid_x + 1) * BLOCK_SIZE,
                 ] = tile
+        if not np.array_equal(last_detected_tags, detected_tags):
+            print("new tags:\n", detected_tags)
+            last_detected_tags = detected_tags
 
         grid_img_big = cv2.resize(
-            grid_img,
+            grid_img * 255,
             (7 * grid_img.shape[0], 7 * grid_img.shape[1]),
             interpolation=cv2.INTER_NEAREST,
         )
