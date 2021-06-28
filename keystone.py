@@ -4,41 +4,42 @@ import numpy as np
 
 from utils import load_coefficients, save_coefficients
 from tags import TAGS
+from tag_detector import TagDetector
 
 
 BLOCK_SIZE = 4
 GRID_SHAPE = (16, 16)
 GRID_SIZE = (GRID_SHAPE[0] * BLOCK_SIZE, GRID_SHAPE[1] * BLOCK_SIZE)
 
-frameWidth = 740
-frameHeight = 740
-framePoints = np.array(
-    [[0, 0], [frameWidth, 0], [frameWidth, frameHeight], [0, frameHeight]],
+frame_width = 740
+frame_height = 740
+frame_points = np.array(
+    [[0, 0], [frame_width, 0], [frame_width, frame_height], [0, frame_height]],
     dtype=np.float32,
 )
 
-marginTRBL = (20, 20, 20, 20)
+margin_trbl = (20, 20, 20, 20)
 
 gaps = (4, 4)
 
-roiWidth = frameWidth - (marginTRBL[1] + marginTRBL[3])
-roiHeight = frameHeight - (marginTRBL[0] + marginTRBL[2])
+roiWidth = frame_width - (margin_trbl[1] + margin_trbl[3])
+roiHeight = frame_height - (margin_trbl[0] + margin_trbl[2])
 
 roiPoints = np.array(
     [
-        [marginTRBL[1], marginTRBL[0]],
-        [frameWidth - marginTRBL[3], marginTRBL[0]],
-        [frameWidth - marginTRBL[3], frameHeight - marginTRBL[2]],
-        [marginTRBL[1], frameHeight - marginTRBL[2]],
+        [margin_trbl[1], margin_trbl[0]],
+        [frame_width - margin_trbl[3], margin_trbl[0]],
+        [frame_width - margin_trbl[3], frame_height - margin_trbl[2]],
+        [margin_trbl[1], frame_height - margin_trbl[2]],
     ],
     dtype=np.float32,
 )
 
 roiToFrameH = np.matmul(
     np.array(
-        [[roiWidth / frameWidth, 0, 0], [0, roiHeight / frameHeight, 0], [0, 0, 1]]
+        [[roiWidth / frame_width, 0, 0], [0, roiHeight / frame_height, 0], [0, 0, 1]]
     ),
-    cv2.findHomography(roiPoints, framePoints, cv2.LMEDS)[0],
+    cv2.findHomography(roiPoints, frame_points, cv2.LMEDS)[0],
 )
 
 gridToRoiScale = np.array(
@@ -49,51 +50,9 @@ gridToFrameH = np.matmul(gridMove, np.matmul(gridToRoiScale, roiToFrameH))
 
 lastH = gridToFrameH
 
-print(framePoints)
+print(frame_points)
 print(roiPoints)
 print(lastH)
-
-
-def string_tag_to_np_tag(string_tag):
-    return np.fromstring(
-        ",".join(list(string_tag)), np.uint8, BLOCK_SIZE * BLOCK_SIZE, ","
-    ).reshape((BLOCK_SIZE, BLOCK_SIZE))
-
-
-def np_tag_to_string_tag(np_tag):
-    return "".join(str(e) for e in list(np_tag.reshape(BLOCK_SIZE * BLOCK_SIZE)))
-
-
-def string_tag_to_int(string_tag):
-    return int(string_tag, 2)
-
-
-def np_tag_to_int(np_tag):
-    np_tag_linear = np_tag.reshape(BLOCK_SIZE * BLOCK_SIZE)
-    mask = 1 << (BLOCK_SIZE * BLOCK_SIZE)
-    int_tag = 0
-    for bit in np_tag_linear:
-        mask >>= 1
-        if bit:
-            int_tag |= mask
-    return int_tag
-
-
-def create_tag_dict(string_tags):
-    dict = {}
-    for idx, string_tag in enumerate(string_tags):
-        np_tag = string_tag_to_np_tag(string_tag)
-        dict[np_tag_to_int(np_tag)] = idx
-        np_tag = np.rot90(np_tag)
-        dict[np_tag_to_int(np_tag)] = idx
-        np_tag = np.rot90(np_tag)
-        dict[np_tag_to_int(np_tag)] = idx
-        np_tag = np.rot90(np_tag)
-        dict[np_tag_to_int(np_tag)] = idx
-    return dict
-
-
-tag_dict = create_tag_dict(TAGS)
 
 
 def isConvex(points):
@@ -112,40 +71,6 @@ def isConvex(points):
 
 def orientation(p0, p1, p2):
     return np.cross(p1 - p0, p2 - p1)[0]
-
-
-def tile_window(img, grid_x, grid_y):
-    gap_height = (img.shape[0] * gaps[0]) / roiHeight
-    img_height_with_added_gap = img.shape[0] + gap_height
-    tile_height_with_gap = img_height_with_added_gap / GRID_SHAPE[0]
-    tile_height = tile_height_with_gap - gap_height
-    y_start = min(math.floor(grid_y * tile_height_with_gap), img.shape[0] - 1)
-    y_end = min(
-        math.floor(grid_y * tile_height_with_gap + tile_height), img.shape[0] - 1
-    )
-
-    gap_width = (img.shape[1] * gaps[1]) / roiWidth
-    img_width_with_added_gap = img.shape[1] + gap_width
-    tile_width_with_gap = img_width_with_added_gap / GRID_SHAPE[1]
-    tile_width = tile_width_with_gap - gap_width
-    x_start = min(math.floor(grid_x * tile_width_with_gap), img.shape[1] - 1)
-    x_end = min(math.floor(grid_x * tile_width_with_gap + tile_width), img.shape[1] - 1)
-
-    window = img[y_start:y_end, x_start:x_end]
-
-    return window
-
-
-def reduce_tile(tile_img_gray):
-    tile_small = cv2.resize(
-        tile_img_gray,
-        (BLOCK_SIZE, BLOCK_SIZE),
-        interpolation=cv2.INTER_AREA,
-    )
-    ret, tile_small_bw = cv2.threshold(
-        tile_small, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
-    return tile_small_bw
 
 
 last_detected_tags = np.full(GRID_SHAPE, -1, dtype=np.int32)
@@ -231,32 +156,37 @@ def keystone(img):
         #        print(sourcePoints, targetPoints)
         cv2.drawContours(undistorted, trapezoidContours, 0, (0, 0, 255), 3)
 
-        H = cv2.findHomography(sourcePoints, framePoints, cv2.LMEDS)[0]
+        H = cv2.findHomography(sourcePoints, frame_points, cv2.LMEDS)[0]
         lastH = H
 
-        scaleFactor = max(undistorted.shape[0], undistorted.shape[1]) / min(
-            frameWidth, frameHeight
+        scale_factor = max(undistorted.shape[0], undistorted.shape[1]) / min(
+            frame_width, frame_height
         )
-        scale = np.array([[scaleFactor, 0, 0], [0, scaleFactor, 0], [0, 0, 1]])
+        scale = np.array([[scale_factor, 0, 0], [0, scale_factor, 0], [0, 0, 1]])
         keytoned1 = cv2.warpPerspective(
             undistortedCopy,
             np.matmul(scale, H),
-            (math.ceil(frameWidth * scaleFactor), math.ceil(frameHeight * scaleFactor)),
+            (
+                math.ceil(frame_width * scale_factor),
+                math.ceil(frame_height * scale_factor),
+            ),
             flags=cv2.INTER_AREA,
         )
 
         for i in range(len(roiPoints)):
-            cv2.circle(keytoned1, tuple(roiPoints[i] * scaleFactor), 2, (0, 0, 255), -1)
+            cv2.circle(
+                keytoned1, tuple(roiPoints[i] * scale_factor), 2, (0, 0, 255), -1
+            )
         cv2.imshow("frame", keytoned1)
 
-        scaleFactor = max(undistorted.shape[0], undistorted.shape[1]) / min(
-            frameWidth, frameHeight
+        scale_factor = max(undistorted.shape[0], undistorted.shape[1]) / min(
+            frame_width, frame_height
         )
-        scale = np.array([[scaleFactor, 0, 0], [0, scaleFactor, 0], [0, 0, 1]])
+        scale = np.array([[scale_factor, 0, 0], [0, scale_factor, 0], [0, 0, 1]])
         keystoned2 = cv2.warpPerspective(
             undistortedCopy,
             np.matmul(np.matmul(scale, roiToFrameH), H),
-            (math.ceil(roiWidth * scaleFactor), math.ceil(roiHeight * scaleFactor)),
+            (math.ceil(roiWidth * scale_factor), math.ceil(roiHeight * scale_factor)),
             flags=cv2.INTER_AREA,
         )
 
@@ -283,22 +213,13 @@ def keystone(img):
         keystoned2_gray = cv2.cvtColor(keystoned2, cv2.COLOR_BGR2GRAY)
 
         global last_detected_tags
-        detected_tags = np.zeros(GRID_SHAPE, dtype=np.int32)
-        grid_img = np.zeros(GRID_SIZE, dtype=keystoned2_gray.dtype)
-        for grid_y in range(GRID_SHAPE[0]):
-            for grid_x in range(GRID_SHAPE[1]):
-                window = tile_window(keystoned2_gray, grid_x, grid_y)
-                tile = reduce_tile(window)
-                tile_id = tag_dict.get(np_tag_to_int(tile), -1)
-                detected_tags[grid_y, grid_x] = tile_id
-                grid_img[
-                    grid_y * BLOCK_SIZE : (grid_y + 1) * BLOCK_SIZE,
-                    grid_x * BLOCK_SIZE : (grid_x + 1) * BLOCK_SIZE,
-                ] = tile
+        tiles = tag_detector.extract_tiles(keystoned2_gray)
+        detected_tags = tag_detector.detect_tags(tiles)
         if not np.array_equal(last_detected_tags, detected_tags):
             print("new tags:\n", detected_tags)
             last_detected_tags = detected_tags
 
+        grid_img = tiles.reshape(GRID_SIZE)
         grid_img_big = cv2.resize(
             grid_img * 255,
             (7 * grid_img.shape[0], 7 * grid_img.shape[1]),
@@ -306,14 +227,14 @@ def keystone(img):
         )
         cv2.imshow("grid_img", grid_img_big)
 
-        scaleFactor = 7
-        scale = np.array([[scaleFactor, 0, 0], [0, scaleFactor, 0], [0, 0, 1]])
+        scale_factor = 7
+        scale = np.array([[scale_factor, 0, 0], [0, scale_factor, 0], [0, 0, 1]])
         keystoned3 = cv2.warpPerspective(
             undistortedCopy,
             np.matmul(scale, np.matmul(gridToFrameH, H)),
             (
-                math.ceil(GRID_SIZE[0] * scaleFactor),
-                math.ceil(GRID_SIZE[1] * scaleFactor),
+                math.ceil(GRID_SIZE[0] * scale_factor),
+                math.ceil(GRID_SIZE[1] * scale_factor),
             ),
             flags=cv2.INTER_AREA,
         )
@@ -387,5 +308,12 @@ def from_file():
     keystone(src)
     cv2.waitKey()
 
+
+tag_detector = TagDetector(
+    GRID_SHAPE,
+    (BLOCK_SIZE, BLOCK_SIZE),
+    (gaps[0] / roiHeight, gaps[1] / roiWidth),
+    TAGS,
+)
 
 from_file()
