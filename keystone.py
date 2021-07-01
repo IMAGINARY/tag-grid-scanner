@@ -11,67 +11,16 @@ from roi import compute_roi_size, compute_roi_matrix, compute_roi_points
 from tag_detector import TagDetector, tiles_to_image
 
 
-BLOCK_SIZE = 4
-GRID_SHAPE = (16, 16)
-GRID_SIZE = (GRID_SHAPE[0] * BLOCK_SIZE, GRID_SHAPE[1] * BLOCK_SIZE)
-
-frame_width = 740
-frame_height = 740
-frame_points = np.array(
-    [[0, 0], [frame_width, 0], [frame_width, frame_height], [0, frame_height]],
-    dtype=np.float32,
-)
-
-margin_trbl = (20, 20, 20, 20)
-
-gaps = (4, 4)
-
-roiWidth = frame_width - (margin_trbl[1] + margin_trbl[3])
-roiHeight = frame_height - (margin_trbl[0] + margin_trbl[2])
-
-roiPoints = np.array(
-    [
-        [margin_trbl[1], margin_trbl[0]],
-        [frame_width - margin_trbl[3], margin_trbl[0]],
-        [frame_width - margin_trbl[3], frame_height - margin_trbl[2]],
-        [margin_trbl[1], frame_height - margin_trbl[2]],
-    ],
-    dtype=np.float32,
-)
-
-roiToFrameH = np.matmul(
-    np.array(
-        [[roiWidth / frame_width, 0, 0], [0, roiHeight / frame_height, 0], [0, 0, 1]]
-    ),
-    cv2.findHomography(roiPoints, frame_points, cv2.LMEDS)[0],
-)
-
-gridToRoiScale = np.array(
-    [[GRID_SIZE[0] / roiWidth, 0, 0], [0, GRID_SIZE[1] / roiHeight, 0], [0, 0, 1]]
-)
-gridMove = np.array([[1, 0, -0.5], [0, 1, -0.5], [0, 0, 1]])
-gridToFrameH = np.matmul(gridMove, np.matmul(gridToRoiScale, roiToFrameH))
-
-lastH = gridToFrameH
-
-print(frame_points)
-print(roiPoints)
-print(lastH)
-
-
 def undistort(img, camera_matrix, distortion_coefficients):
     return cv2.undistort(img, camera_matrix, distortion_coefficients, None, None)
 
 
-def compute_roi(undistorted_img_gray):
+def compute_roi(undistorted_img_gray, rel_margin_trbl):
     frame = detect_frame_corners(undistorted_img_gray)
 
     if frame is not None:
-        real_frame_size = (frame_height, frame_width)
-        roi_size = compute_roi_size(real_frame_size, margin_trbl, frame.corners)
-        roi_matrix = compute_roi_matrix(
-            real_frame_size, margin_trbl, frame.corners, roi_size
-        )
+        roi_size = compute_roi_size(rel_margin_trbl, frame.corners)
+        roi_matrix = compute_roi_matrix(rel_margin_trbl, frame.corners, roi_size)
 
         Roi = namedtuple("Roi", ["size", "matrix", "corners", "frame"])
 
@@ -121,13 +70,13 @@ def visualize(img, camera_matrix, distortion_coefficients, intermediates):
 
 
 def extract_roi_and_detect_tags(
-    img, camera_matrix, distortion_coefficients, tag_detector
+    img, camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector
 ):
 
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     undistorted_gray = undistort(img_gray, camera_matrix, distortion_coefficients)
 
-    roi = compute_roi(undistorted_gray)
+    roi = compute_roi(undistorted_gray, rel_margin_trbl)
 
     if roi is not None:
         roi_img = extract_roi(undistorted_gray, roi.matrix, roi.size)
@@ -151,14 +100,20 @@ def extract_roi_and_detect_tags(
     )
 
 
-def from_camera(camera_matrix, distortion_coefficients, tag_detector, http_json_poster):
+def from_camera(
+    camera_matrix,
+    distortion_coefficients,
+    rel_margin_trbl,
+    tag_detector,
+    http_json_poster,
+):
     capture = cv2.VideoCapture(0)
 
     last_detected_tags = tag_detector.create_empty_tags()
     while True:
         ret, src = capture.read()
         detected_tags, intermediates = extract_roi_and_detect_tags(
-            src, camera_matrix, distortion_coefficients, tag_detector
+            src, camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector
         )
         if detected_tags is not None:
             if not np.array_equal(last_detected_tags, detected_tags):
@@ -175,14 +130,39 @@ def from_camera(camera_matrix, distortion_coefficients, tag_detector, http_json_
     cv2.destroyAllWindows()
 
 
-def from_file(camera_matrix, distortion_coefficients, tag_detector):
+def from_file(camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector):
     src = cv2.imread("snapshot.jpg")
     detected_tags, intermediates = extract_roi_and_detect_tags(
-        src, camera_matrix, distortion_coefficients, tag_detector
+        src, camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector
     )
     print("tags", detected_tags)
     visualize(src, camera_matrix, distortion_coefficients, intermediates)
     cv2.waitKey()
+
+
+def compute_abs_roi_size(frame_size, margin_trbl):
+    roi_height = frame_size[0] - (margin_trbl[0] + margin_trbl[2])
+    roi_width = frame_size[1] - (margin_trbl[1] + margin_trbl[3])
+    return roi_height, roi_width
+
+
+def compute_rel_roi_size(frame_size, margin_trbl):
+    abs_roi_size = compute_abs_roi_size(frame_size, margin_trbl)
+    return abs_roi_size[0] / frame_size[0], abs_roi_size[0] / frame_size[0]
+
+
+def compute_rel_margin_trbl(frame_size, margin_trbl):
+    return (
+        margin_trbl[0] / frame_size[0],
+        margin_trbl[1] / frame_size[1],
+        margin_trbl[2] / frame_size[0],
+        margin_trbl[3] / frame_size[1],
+    )
+
+
+def compute_rel_gap_size(frame_size, margin_trbl, gaps):
+    abs_roi_size = compute_abs_roi_size(frame_size, margin_trbl)
+    return gaps[0] / abs_roi_size[0], gaps[1] / abs_roi_size[1]
 
 
 if __name__ == "__main__":
@@ -190,15 +170,32 @@ if __name__ == "__main__":
     def init():
         camera_matrix, distortion_coefficients = load_coefficients("camera-profile.yml")
         http_json_poster = HttpJsonPoster("http://localhost:4848/city/map")
+
+        block_size = 4
+        grid_shape = (16, 16)
+
+        abs_frame_size = (740, 740)
+        abs_margin_trbl = (20, 20, 20, 20)
+        abs_gap_size = (4, 4)
+
+        rel_gap_size = compute_rel_gap_size(
+            abs_frame_size, abs_margin_trbl, abs_gap_size
+        )
+        rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
         tag_detector = TagDetector(
-            GRID_SHAPE,
-            (BLOCK_SIZE, BLOCK_SIZE),
-            (gaps[0] / roiHeight, gaps[1] / roiWidth),
+            grid_shape,
+            (block_size, block_size),
+            rel_gap_size,
             TAGS,
         )
-        from_file(camera_matrix, distortion_coefficients, tag_detector)
+
+        from_file(camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector)
         from_camera(
-            camera_matrix, distortion_coefficients, tag_detector, http_json_poster
+            camera_matrix,
+            distortion_coefficients,
+            rel_margin_trbl,
+            tag_detector,
+            http_json_poster,
         )
 
     init()

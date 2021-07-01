@@ -21,15 +21,10 @@ def create_unit_frame_corners():
     return create_frame_corners((1, 1))
 
 
-def compute_roi_size(real_frame_size, real_margins_trbl, frame_corners):
-    real_roi_size = (
-        real_frame_size[0] - (real_margins_trbl[0] + real_margins_trbl[2]),
-        real_frame_size[1] - (real_margins_trbl[1] + real_margins_trbl[3]),
-    )
-
+def compute_roi_size(rel_margins_trbl, frame_corners):
     roi_to_frame_ratio = (
-        real_roi_size[0] / real_frame_size[0],
-        real_roi_size[1] / real_frame_size[1],
+        1 - (rel_margins_trbl[0] + rel_margins_trbl[2]),
+        1 - (rel_margins_trbl[1] + rel_margins_trbl[3]),
     )
 
     p = frame_corners
@@ -45,7 +40,7 @@ def compute_roi_size(real_frame_size, real_margins_trbl, frame_corners):
     return h, w
 
 
-def compute_roi_matrix(real_frame_size, real_margins_trbl, frame_corners, roi_size):
+def compute_roi_matrix(rel_margins_trbl, frame_corners, roi_size):
     scale_mat = np.array(
         [
             [roi_size[0], 0, 0],
@@ -56,12 +51,6 @@ def compute_roi_matrix(real_frame_size, real_margins_trbl, frame_corners, roi_si
 
     unit_frame_mat = to_frame_1x1_mat(frame_corners)
 
-    rel_margins_trbl = (
-        real_margins_trbl[0] / real_frame_size[0],
-        real_margins_trbl[1] / real_frame_size[1],
-        real_margins_trbl[2] / real_frame_size[0],
-        real_margins_trbl[3] / real_frame_size[1],
-    )
     unit_roi_mat = frame_1x1_to_roi_1x1_mat(rel_margins_trbl)
 
     mat = np.matmul(scale_mat, np.matmul(unit_roi_mat, unit_frame_mat))
