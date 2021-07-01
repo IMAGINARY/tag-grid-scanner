@@ -6,12 +6,13 @@ import math
 
 
 def create_frame_corners(size):
+    width, height = size
     return np.array(
         [
             [0, 0],
-            [size[0], 0],
-            [size[0], size[1]],
-            [0, size[1]],
+            [width, 0],
+            [width, height],
+            [0, height],
         ],
         dtype=np.float32,
     )
@@ -21,7 +22,7 @@ def create_unit_frame_corners():
     return create_frame_corners((1, 1))
 
 
-def compute_roi_size(rel_margins_trbl, frame_corners):
+def compute_roi_shape(rel_margins_trbl, frame_corners):
     roi_to_frame_ratio = (
         1 - (rel_margins_trbl[0] + rel_margins_trbl[2]),
         1 - (rel_margins_trbl[1] + rel_margins_trbl[3]),
@@ -29,22 +30,23 @@ def compute_roi_size(rel_margins_trbl, frame_corners):
 
     p = frame_corners
 
-    dist_h_top = distance(p[0], p[1])
-    dist_h_bottom = distance(p[2], p[3])
-    w = math.ceil(roi_to_frame_ratio[0] * max(dist_h_top, dist_h_bottom))
-
     dist_v_left = distance(p[3], p[0])
     dist_v_right = distance(p[1], p[2])
-    h = math.ceil(roi_to_frame_ratio[1] * max(dist_v_left, dist_v_right))
+    h = math.ceil(roi_to_frame_ratio[0] * max(dist_v_left, dist_v_right))
+
+    dist_h_top = distance(p[0], p[1])
+    dist_h_bottom = distance(p[2], p[3])
+    w = math.ceil(roi_to_frame_ratio[1] * max(dist_h_top, dist_h_bottom))
 
     return h, w
 
 
-def compute_roi_matrix(rel_margins_trbl, frame_corners, roi_size):
+def compute_roi_matrix(rel_margins_trbl, frame_corners, roi_shape):
+    roi_height, roi_width = roi_shape
     scale_mat = np.array(
         [
-            [roi_size[0], 0, 0],
-            [0, roi_size[1], 0],
+            [roi_width, 0, 0],
+            [0, roi_height, 0],
             [0, 0, 1],
         ]
     )
@@ -66,9 +68,10 @@ def to_affine(point):
     return point[:-1] / point[-1]
 
 
-def compute_roi_points(roi_size, roi_matrix):
+def compute_roi_points(roi_shape, roi_matrix):
     roi_matrix_inv = np.linalg.inv(roi_matrix)
-    roi_points = create_frame_corners(roi_size)
+    roi_height, roi_width = roi_shape
+    roi_points = create_frame_corners((roi_width, roi_height))
     for i in range(len(roi_points)):
         roi_point_homogenous = to_homogenous(roi_points[i])
         roi_points[i] = to_affine(np.matmul(roi_matrix_inv, roi_point_homogenous))

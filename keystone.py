@@ -9,8 +9,12 @@ from utils import load_coefficients
 from tags import TAGS
 from http_json_poster import HttpJsonPoster
 from frame import detect_frame_corners
-from roi import compute_roi_size, compute_roi_matrix, compute_roi_points
+from roi import compute_roi_shape, compute_roi_matrix, compute_roi_points
 from tag_detector import TagDetector, tiles_to_image
+
+
+# shape = (height, width)
+# size = (width, height)
 
 
 def undistort(img, camera_matrix, distortion_coefficients):
@@ -21,22 +25,23 @@ def compute_roi(undistorted_img_gray, rel_margin_trbl):
     frame = detect_frame_corners(undistorted_img_gray)
 
     if frame is not None:
-        roi_size = compute_roi_size(rel_margin_trbl, frame.corners)
-        roi_matrix = compute_roi_matrix(rel_margin_trbl, frame.corners, roi_size)
+        roi_shape = compute_roi_shape(rel_margin_trbl, frame.corners)
+        roi_matrix = compute_roi_matrix(rel_margin_trbl, frame.corners, roi_shape)
 
-        Roi = namedtuple("Roi", ["size", "matrix", "corners", "frame"])
+        Roi = namedtuple("Roi", ["shape", "matrix", "corners", "frame"])
 
         return Roi(
-            size=roi_size,
+            shape=roi_shape,
             matrix=roi_matrix,
-            corners=compute_roi_points(roi_size, roi_matrix),
+            corners=compute_roi_points(roi_shape, roi_matrix),
             frame=frame,
         )
     else:
         return None
 
 
-def extract_roi(undistorted_img, roi_matrix, roi_size):
+def extract_roi(undistorted_img, roi_matrix, roi_shape):
+    roi_size = roi_shape[::-1]
     return cv2.warpPerspective(
         undistorted_img, roi_matrix, roi_size, flags=cv2.INTER_AREA
     )
@@ -88,7 +93,7 @@ def extract_roi_and_detect_tags_old(
     roi = compute_roi(undistorted_gray, rel_margin_trbl)
 
     if roi is not None:
-        roi_img = extract_roi(undistorted_gray, roi.matrix, roi.size)
+        roi_img = extract_roi(undistorted_gray, roi.matrix, roi.shape)
         tiles = tag_detector.extract_tiles(roi_img)
         detected_tags = tag_detector.detect_tags(tiles)
     else:
@@ -109,7 +114,7 @@ def extract_roi_and_detect_tags_old(
 
 
 def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
-    roi_img = extract_roi(undistorted_img_gray, roi.matrix, roi.size)
+    roi_img = extract_roi(undistorted_img_gray, roi.matrix, roi.shape)
     tiles = tag_detector.extract_tiles(roi_img)
     detected_tags = tag_detector.detect_tags(tiles)
 
@@ -216,9 +221,9 @@ def from_file(camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detec
 
 
 def compute_abs_roi_size(frame_size, margin_trbl):
-    roi_height = frame_size[0] - (margin_trbl[0] + margin_trbl[2])
-    roi_width = frame_size[1] - (margin_trbl[1] + margin_trbl[3])
-    return roi_height, roi_width
+    roi_width = frame_size[0] - (margin_trbl[1] + margin_trbl[3])
+    roi_height = frame_size[1] - (margin_trbl[0] + margin_trbl[2])
+    return roi_width, roi_height
 
 
 def compute_rel_roi_size(frame_size, margin_trbl):
@@ -228,14 +233,14 @@ def compute_rel_roi_size(frame_size, margin_trbl):
 
 def compute_rel_margin_trbl(frame_size, margin_trbl):
     return (
-        margin_trbl[0] / frame_size[0],
-        margin_trbl[1] / frame_size[1],
-        margin_trbl[2] / frame_size[0],
-        margin_trbl[3] / frame_size[1],
+        margin_trbl[0] / frame_size[1],
+        margin_trbl[1] / frame_size[0],
+        margin_trbl[2] / frame_size[1],
+        margin_trbl[3] / frame_size[0],
     )
 
 
-def compute_rel_gap_size(frame_size, margin_trbl, gaps):
+def compute_rel_gap_hv(frame_size, margin_trbl, gaps):
     abs_roi_size = compute_abs_roi_size(frame_size, margin_trbl)
     return gaps[0] / abs_roi_size[0], gaps[1] / abs_roi_size[1]
 
@@ -246,21 +251,21 @@ if __name__ == "__main__":
         camera_matrix, distortion_coefficients = load_coefficients("camera-profile.yml")
         http_json_poster = HttpJsonPoster("http://localhost:4848/city/map")
 
-        block_size = 4
-        grid_shape = (16, 16)
+        block_shape = (4, 4)
+        grid_shape = (10, 20)
 
-        abs_frame_size = (740, 740)
+        abs_frame_size = (916, 476)
         abs_margin_trbl = (20, 20, 20, 20)
-        abs_gap_size = (4, 4)
+        abs_gap_hv = (4, 4)
 
-        rel_gap_size = compute_rel_gap_size(
-            abs_frame_size, abs_margin_trbl, abs_gap_size
-        )
+        rel_gap_hv = compute_rel_gap_hv(abs_frame_size, abs_margin_trbl, abs_gap_hv)
+        rel_gap_vh = rel_gap_hv[::-1]
+
         rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
         tag_detector = TagDetector(
             grid_shape,
-            (block_size, block_size),
-            rel_gap_size,
+            block_shape,
+            rel_gap_vh,
             TAGS,
         )
 
