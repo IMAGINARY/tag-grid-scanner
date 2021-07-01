@@ -51,25 +51,32 @@ def draw_frame_and_roi(undistorted_img, roi):
     cv2.polylines(undistorted_img, roi_corners, True, (255, 0, 0), 2)
 
 
-def visualize(img, camera_matrix, distortion_coefficients, intermediates):
+def visualize(
+    img,
+    camera_matrix,
+    distortion_coefficients,
+    roi,
+    roi_image,
+    tiles,
+):
     undistorted_img = undistort(img, camera_matrix, distortion_coefficients)
-    if intermediates.roi is not None:
-        draw_frame_and_roi(undistorted_img, intermediates.roi)
+    if roi is not None:
+        draw_frame_and_roi(undistorted_img, roi)
     cv2.imshow("detected frame and roi", undistorted_img)
 
-    if intermediates.images is not None and intermediates.images.roi is not None:
-        cv2.imshow("region of interest", intermediates.images.roi)
+    if roi_image is not None:
+        cv2.imshow("region of interest", roi_image)
     else:
         cv2.destroyWindow("region of interest")
 
-    if intermediates.tiles is not None:
-        tiles_img = tiles_to_image(intermediates.tiles, scale_factor=7)
+    if tiles is not None:
+        tiles_img = tiles_to_image(tiles, scale_factor=7)
         cv2.imshow("tiles", tiles_img)
     else:
         cv2.destroyWindow("tiles")
 
 
-def extract_roi_and_detect_tags(
+def extract_roi_and_detect_tags_old(
     img, camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector
 ):
 
@@ -82,7 +89,6 @@ def extract_roi_and_detect_tags(
         roi_img = extract_roi(undistorted_gray, roi.matrix, roi.size)
         tiles = tag_detector.extract_tiles(roi_img)
         detected_tags = tag_detector.detect_tags(tiles)
-
     else:
         roi_img = None
         tiles = None
@@ -100,6 +106,19 @@ def extract_roi_and_detect_tags(
     )
 
 
+def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
+    roi_img = extract_roi(undistorted_img_gray, roi.matrix, roi.size)
+    tiles = tag_detector.extract_tiles(roi_img)
+    detected_tags = tag_detector.detect_tags(tiles)
+
+    Intermediates = namedtuple("Intermediates", ["roi_image", "tiles"])
+
+    return detected_tags, Intermediates(
+        roi_image=roi_img,
+        tiles=tiles,
+    )
+
+
 def from_camera(
     camera_matrix,
     distortion_coefficients,
@@ -112,16 +131,31 @@ def from_camera(
     last_detected_tags = tag_detector.create_empty_tags()
     while True:
         ret, src = capture.read()
-        detected_tags, intermediates = extract_roi_and_detect_tags(
-            src, camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector
-        )
-        if detected_tags is not None:
-            if not np.array_equal(last_detected_tags, detected_tags):
-                print("new tags:\n", detected_tags)
-                last_detected_tags = detected_tags
-                http_json_poster.request_post({"cells": last_detected_tags.tolist()})
+        src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+        undistorted_gray = undistort(src_gray, camera_matrix, distortion_coefficients)
 
-        visualize(src, camera_matrix, distortion_coefficients, intermediates)
+        roi = compute_roi(undistorted_gray, rel_margin_trbl)
+
+        if roi is not None:
+            detected_tags, intermediates = extract_roi_and_detect_tags(
+                undistorted_gray, roi, tag_detector
+            )
+            if detected_tags is not None:
+                if not np.array_equal(last_detected_tags, detected_tags):
+                    print("new tags:\n", detected_tags)
+                    last_detected_tags = detected_tags
+                    http_json_poster.request_post(
+                        {"cells": last_detected_tags.tolist()}
+                    )
+
+        visualize(
+            src,
+            camera_matrix,
+            distortion_coefficients,
+            roi,
+            intermediates.roi_image,
+            intermediates.tiles,
+        )
         key = cv2.waitKey(1)
         if key == 27:
             break
@@ -132,11 +166,23 @@ def from_camera(
 
 def from_file(camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector):
     src = cv2.imread("snapshot.jpg")
-    detected_tags, intermediates = extract_roi_and_detect_tags(
-        src, camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector
+    src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+    undistorted_gray = undistort(src_gray, camera_matrix, distortion_coefficients)
+
+    roi = compute_roi(undistorted_gray, rel_margin_trbl)
+    if roi is not None:
+        detected_tags, intermediates = extract_roi_and_detect_tags(
+            undistorted_gray, roi, tag_detector
+        )
+        print("tags", detected_tags)
+    visualize(
+        src,
+        camera_matrix,
+        distortion_coefficients,
+        roi,
+        intermediates.roi_image,
+        intermediates.tiles,
     )
-    print("tags", detected_tags)
-    visualize(src, camera_matrix, distortion_coefficients, intermediates)
     cv2.waitKey()
 
 
