@@ -1,3 +1,5 @@
+import threading
+import time
 from collections import namedtuple
 
 import cv2
@@ -129,13 +131,39 @@ def from_camera(
     capture = cv2.VideoCapture(0)
 
     last_detected_tags = tag_detector.create_empty_tags()
+    roi = None
+    img_to_renew_roi = None
+    img_to_renew_roi_cond = threading.Condition()
+
+    def renew_roi():
+        nonlocal img_to_renew_roi
+        while True:
+            if img_to_renew_roi is not None:
+                new_roi = compute_roi(img_to_renew_roi, rel_margin_trbl)
+                if new_roi is not None:
+                    nonlocal roi
+                    roi = new_roi
+            with img_to_renew_roi_cond:
+                img_to_renew_roi_cond.wait()
+
+    roi_thread = threading.Thread(target=renew_roi, daemon=True)
+    roi_thread.start()
+
+    renew_roi_interval = 5
+    renew_roi_ts = float("-inf")
     while True:
+        frame_start_ts = time.perf_counter()
         ret, src = capture.read()
         src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
         undistorted_gray = undistort(src_gray, camera_matrix, distortion_coefficients)
+        ts = time.perf_counter()
+        if ts > renew_roi_ts + renew_roi_interval:
+            renew_roi_ts = ts
+            with img_to_renew_roi_cond:
+                img_to_renew_roi = undistorted_gray
+                img_to_renew_roi_cond.notifyAll()
 
-        roi = compute_roi(undistorted_gray, rel_margin_trbl)
-
+        intermediates = None
         if roi is not None:
             detected_tags, intermediates = extract_roi_and_detect_tags(
                 undistorted_gray, roi, tag_detector
@@ -153,10 +181,11 @@ def from_camera(
             camera_matrix,
             distortion_coefficients,
             roi,
-            intermediates.roi_image,
-            intermediates.tiles,
+            intermediates.roi_image if intermediates is not None else None,
+            intermediates.tiles if intermediates is not None else None,
         )
-        key = cv2.waitKey(1)
+        frame_end_ts = time.perf_counter()
+        key = cv2.waitKey(max(0, 250 - int(1000 * (frame_end_ts - frame_start_ts))))
         if key == 27:
             break
 
@@ -235,7 +264,7 @@ if __name__ == "__main__":
             TAGS,
         )
 
-        from_file(camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector)
+        # from_file(camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector)
         from_camera(
             camera_matrix,
             distortion_coefficients,
