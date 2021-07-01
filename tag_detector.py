@@ -3,6 +3,20 @@ import math
 import numpy as np
 
 
+def tiles_to_image(tiles):
+    img = np.zeros(
+        (tiles.shape[0] * tiles.shape[2], tiles.shape[1] * tiles.shape[3]),
+        dtype=np.uint8,
+    )
+    for grid_y in range(tiles.shape[0]):
+        for grid_x in range(tiles.shape[1]):
+            img[
+                grid_y * tiles.shape[2] : (grid_y + 1) * tiles.shape[2],
+                grid_x * tiles.shape[3] : (grid_x + 1) * tiles.shape[3],
+            ] = tiles[grid_y][grid_x]
+    return img
+
+
 class TagDetector:
     def __init__(self, grid_size, tag_size, rel_gaps, tags):
         self.grid_size = grid_size
@@ -46,6 +60,9 @@ class TagDetector:
                 tile_id = self.__tag_dict.get(self.np_tag_to_int(tile), -1)
                 detected_tags[grid_y, grid_x] = tile_id
         return detected_tags
+
+    def create_empty_tags(self):
+        return np.full(self.grid_size, -1, dtype=np.int32)
 
     def string_tag_to_np_tag(self, string_tag):
         return np.fromstring(
