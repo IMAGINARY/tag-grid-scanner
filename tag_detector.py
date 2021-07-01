@@ -3,7 +3,7 @@ import math
 import numpy as np
 
 
-def tiles_to_image(tiles):
+def tiles_to_image(tiles, max_value=255, scale_factor=1):
     img = np.zeros(
         (tiles.shape[0] * tiles.shape[2], tiles.shape[1] * tiles.shape[3]),
         dtype=np.uint8,
@@ -14,6 +14,18 @@ def tiles_to_image(tiles):
                 grid_y * tiles.shape[2] : (grid_y + 1) * tiles.shape[2],
                 grid_x * tiles.shape[3] : (grid_x + 1) * tiles.shape[3],
             ] = tiles[grid_y][grid_x]
+
+    img *= max_value
+
+    if scale_factor != 1.0:
+        img = cv2.resize(
+            img,
+            None,
+            fx=scale_factor,
+            fy=scale_factor,
+            interpolation=cv2.INTER_NEAREST,
+        )
+
     return img
 
 
