@@ -6,6 +6,25 @@ import numpy as np
 Frame = namedtuple("Frame", ["corners", "contour"])
 
 
+def refine_corners(img, corners):
+    # stop the iteration of the subpixel corner refinement
+    # when specified accuracy, epsilon, is reached or
+    # specified number of iterations are completed.
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+
+    # refinement only works with non-integer data types
+    corners = np.array(corners, dtype=np.float32)
+
+    # refine
+    return cv2.cornerSubPix(
+        img,
+        corners,
+        (11, 11),
+        (-1, -1),
+        criteria,
+    )
+
+
 def detect_frame_corners(img, min_rel_area=0.001, max_rel_area=0.999, rel_epsilon=0.1):
     bilaterally_filtered_img = cv2.bilateralFilter(img, 5, 175, 175)
 
@@ -35,20 +54,30 @@ def detect_frame_corners(img, min_rel_area=0.001, max_rel_area=0.999, rel_epsilo
             # check how many vertices has the approximate polygon
             approx_corners_number = len(approx_corners)
 
-            if approx_corners_number == 4 and is_convex(approx_corners):
-                # it is a convex quadrilateral
-                if (
-                    orientation(approx_corners[0], approx_corners[1], approx_corners[2])
-                    < 0
-                ):
-                    # points are CCW, but we need CW
-                    approx_corners = np.flip(approx_corners, axis=0)
+            if approx_corners_number == 4:
+                # it is a quadrilateral
 
-                top_left = min(approx_corners, key=np.linalg.norm)
-                while not np.array_equal(approx_corners[0], top_left):
-                    approx_corners = np.roll(approx_corners, 1)
+                # refine frame corners to subpixel accuracy
+                approx_corners = refine_corners(
+                    bilaterally_filtered_img, approx_corners
+                )
 
-                return Frame(corners=approx_corners, contour=contour)
+                if is_convex(approx_corners):
+                    # it is a convex quadrilateral
+                    if (
+                        orientation(
+                            approx_corners[0], approx_corners[1], approx_corners[2]
+                        )
+                        < 0
+                    ):
+                        # points are CCW, but we need CW
+                        approx_corners = np.flip(approx_corners, axis=0)
+
+                    top_left = min(approx_corners, key=np.linalg.norm)
+                    while not np.array_equal(approx_corners[0], top_left):
+                        approx_corners = np.roll(approx_corners, 1)
+
+                    return Frame(corners=approx_corners, contour=contour)
 
     return None
 

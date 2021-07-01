@@ -49,7 +49,9 @@ def extract_roi(undistorted_img, roi_matrix, roi_shape):
 
 def draw_frame_and_roi(undistorted_img, roi):
     frame = roi.frame
-    frame_corners = np.moveaxis(frame.corners, source=1, destination=0)
+    frame_corners = np.array(
+        np.moveaxis(frame.corners, source=1, destination=0), dtype=np.int32
+    )
     frame_contours = np.expand_dims(frame.contour, axis=0)
     cv2.drawContours(undistorted_img, frame_contours, -1, (0, 255, 255), 4)
     cv2.polylines(undistorted_img, frame_corners, True, (0, 0, 255), 2)
