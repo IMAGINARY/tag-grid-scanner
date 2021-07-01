@@ -6,7 +6,7 @@ import time
 
 from utils import save_coefficients
 
-num_frames = 10
+num_frames = 20
 last_frame = None
 capture = cv2.VideoCapture(0)
 
