@@ -6,10 +6,10 @@ name = "pypi"
 [packages]
 numpy = "*"
 opencv-python = "*"
-black = "*"
 requests = "*"
 
 [dev-packages]
+black = "*"
 
 [requires]
 python_version = "3.9"
