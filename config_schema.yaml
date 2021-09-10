@@ -1,0 +1,123 @@
+---
+"$schema": https://json-schema.org/draft/2020-12/schema
+title: Product
+description: Detector config file schema
+type: object
+"$defs":
+  nonneginteger:
+    type: integer
+    minimum: 0
+  posinteger:
+    type: integer
+    minimum: 1
+  nonnegnumber:
+    type: number
+    minimum: 0.0
+  posnumber:
+    type: number
+    exclusiveMinimum: 0.0
+  posivec2:
+    type: array
+    minItems: 2
+    maxItems: 2
+    items:
+      "$ref": "#/$defs/posinteger"
+  nonnegvec2:
+    type: array
+    minItems: 2
+    maxItems: 2
+    items:
+      "$ref": "#/$defs/nonnegnumber"
+  posvec2:
+    type: array
+    minItems: 2
+    maxItems: 2
+    items:
+      "$ref": "#/$defs/posnumber"
+  nonnegvec4:
+    type: array
+    minItems: 4
+    maxItems: 4
+    items:
+      "$ref": "#/$defs/nonnegnumber"
+properties:
+  camera:
+    type: object
+    properties:
+      id:
+        "$ref": "#/$defs/nonneginteger"
+        default: 0
+      name:
+        type: string
+      width:
+        "$ref": "#/$defs/posinteger"
+      height:
+        "$ref": "#/$defs/posinteger"
+      fourcc:
+        type: string
+      calibration:
+        type: string
+      image:
+        type: string
+      flipV:
+        type: boolean
+        default: false
+      flipH:
+        type: boolean
+        default: false
+      rotate:
+        type: integer
+        enum: [ 0, 90, 180, 270 ]
+        default: 0
+      exposure:
+        "$ref": "#/$defs/posnumber"
+    default: { }
+  dimensions:
+    type: object
+    properties:
+      grid:
+        "$ref": "#/$defs/posivec2"
+      tile:
+        "$ref": "#/$defs/posivec2"
+      size:
+        "$ref": "#/$defs/posvec2"
+        default: [ 1.0, 1.0 ]
+      padding:
+        "$ref": "#/$defs/nonnegvec4"
+        default: [ 0.0, 0.0, 0.0, 0.0 ]
+      gap:
+        "$ref": "#/$defs/nonnegvec2"
+        default: [ 0, 0 ]
+    required: [ grid, tile ]
+    default: { }
+  tags:
+    type: object
+    patternProperties:
+      ^unknown$: { }
+      ^[01]+$: { }
+    additionalProperties: false
+    required: [ unknown ]
+    default:
+      unknown: -1
+  notify:
+    type: object
+    properties:
+      stdout:
+        type: boolean
+        default: true
+      stderr:
+        type: boolean
+        default: false
+      remote:
+        type: boolean
+        default: false
+      url:
+        type: string
+      repeat:
+        type: boolean
+        default: false
+      interval:
+        "$ref": "#/$defs/posinteger"
+        default: 1000
+    default: { }
+default: { }
