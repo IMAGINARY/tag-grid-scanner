@@ -103,6 +103,12 @@ properties:
   notify:
     type: object
     properties:
+      template:
+        default: [ ]
+      assignTo:
+        type: string
+        format: json-pointer
+        default: ""
       stdout:
         type: boolean
         default: true
@@ -118,7 +124,20 @@ properties:
         type: boolean
         default: false
       interval:
+        title: Interval at which notification are repeated in seconds.
         "$ref": "#/$defs/posinteger"
-        default: 1000
     default: { }
+    allOf:
+      - if:
+          properties:
+            remote:
+              const: true
+        then:
+          required: [ url ]
+      - if:
+          properties:
+            repeat:
+              const: true
+        then:
+          required: [ interval ]
 default: { }

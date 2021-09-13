@@ -1,3 +1,6 @@
+import json
+import sys
+import jsonpointer
 import threading
 import time
 from collections import namedtuple
@@ -7,6 +10,7 @@ import numpy as np
 
 from arguments import get_arguments
 from config import get_config
+from notification_manager import NotificationManager
 from utils import load_coefficients
 from http_json_poster import HttpJsonPoster
 from frame import detect_frame_corners
@@ -195,12 +199,37 @@ def create_preprocessor(camera_config):
     return preprocess
 
 
+def create_notifier(notify_config):
+    notifiers = []
+    if notify_config["stdout"]:
+        notifiers.append(lambda s: print(s, file=sys.stdout))
+    if notify_config["stderr"]:
+        notifiers.append(lambda s: print(s, file=sys.stderr))
+    if notify_config["remote"]:
+        http_json_poster = HttpJsonPoster(notify_config["url"])
+        notifiers.append(lambda s: http_json_poster.request_post(s))
+
+    notification_manager = NotificationManager(
+        notifiers, notify_config["interval"] if notify_config["repeat"] else None
+    )
+
+    template = notify_config["template"]
+    assign_to = notify_config["assignTo"]
+
+    def notify(new_tags):
+        notification_obj = jsonpointer.set_pointer(template, assign_to, new_tags, False)
+        notification = json.dumps(notification_obj)
+        notification_manager.notify(notification)
+
+    return notify
+
+
 def capture_and_detect(
     capture,
     preprocess,
     rel_margin_trbl,
     tag_detector,
-    http_json_poster,
+    notify,
 ):
     first_frame_index = capture.get(cv2.CAP_PROP_POS_FRAMES)
     last_detected_tags = tag_detector.create_empty_tags()
@@ -273,11 +302,7 @@ def capture_and_detect(
 
                 if detected_tags is not None:
                     if not np.array_equal(last_detected_tags, detected_tags):
-                        print("new tags:\n", detected_tags)
-                        last_detected_tags = detected_tags
-                        http_json_poster.request_post(
-                            {"cells": last_detected_tags.tolist()}
-                        )
+                        notify(detected_tags.tolist())
 
             visualize(
                 undistorted_gray,
@@ -336,11 +361,7 @@ if __name__ == "__main__":
 
         capture = setup_video_capture(config_with_defaults["camera"])
         preprocess = create_preprocessor(config_with_defaults["camera"])
-        http_json_poster = (
-            HttpJsonPoster("http://localhost:4848/city/map")
-            if config["camera"]["calibration"] is not None
-            else None
-        )
+        notify = create_notifier(config_with_defaults["notify"])
 
         block_shape = tuple(config_with_defaults["dimensions"]["tile"])
         grid_shape = tuple(config_with_defaults["dimensions"]["grid"])
@@ -360,8 +381,6 @@ if __name__ == "__main__":
             config_with_defaults["tags"],
         )
 
-        capture_and_detect(
-            capture, preprocess, rel_margin_trbl, tag_detector, http_json_poster
-        )
+        capture_and_detect(capture, preprocess, rel_margin_trbl, tag_detector, notify)
 
     init()
