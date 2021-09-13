@@ -7,6 +7,9 @@ name = "pypi"
 numpy = "*"
 opencv-python = "*"
 requests = "*"
+pyyaml = "*"
+jsonschema = "*"
+jsonpointer = "*"
 
 [dev-packages]
 black = "*"

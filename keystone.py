@@ -1,3 +1,6 @@
+import json
+import sys
+import jsonpointer
 import threading
 import time
 from collections import namedtuple
@@ -5,16 +8,14 @@ from collections import namedtuple
 import cv2
 import numpy as np
 
+from arguments import get_arguments
+from config import get_config
+from notification_manager import NotificationManager
 from utils import load_coefficients
-from tags import TAGS
 from http_json_poster import HttpJsonPoster
 from frame import detect_frame_corners
 from roi import compute_roi_shape, compute_roi_matrix, compute_roi_points
 from tag_detector import TagDetector, tiles_to_image
-
-
-# shape = (height, width)
-# size = (width, height)
 
 
 def undistort(img, camera_matrix, distortion_coefficients):
@@ -61,17 +62,15 @@ def draw_frame_and_roi(undistorted_img, roi):
 
 
 def visualize(
-    img,
-    camera_matrix,
-    distortion_coefficients,
+    preprocessed,
     roi,
     roi_image,
     tiles,
 ):
-    undistorted_img = undistort(img, camera_matrix, distortion_coefficients)
     if roi is not None:
-        draw_frame_and_roi(undistorted_img, roi)
-    cv2.imshow("detected frame and roi", undistorted_img)
+        preprocessed = preprocessed.copy()
+        draw_frame_and_roi(preprocessed, roi)
+    cv2.imshow("detected frame and roi", preprocessed)
 
     if roi_image is not None:
         cv2.imshow("region of interest", roi_image)
@@ -88,7 +87,6 @@ def visualize(
 def extract_roi_and_detect_tags_old(
     img, camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector
 ):
-
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     undistorted_gray = undistort(img_gray, camera_matrix, distortion_coefficients)
 
@@ -128,15 +126,112 @@ def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
     )
 
 
-def from_camera(
-    camera_matrix,
-    distortion_coefficients,
+def select_capture_source(camera_config):
+    if "filename" in camera_config:
+        return camera_config["filename"]
+    else:
+        return camera_config["id"]
+
+
+def setup_video_capture(camera_config):
+    source = select_capture_source(camera_config)
+    capture = cv2.VideoCapture(source)
+
+    if "fourcc" in camera_config:
+        s = camera_config["fourcc"]
+        fourcc = cv2.VideoWriter_fourcc(s[0], s[1], s[2], s[3])
+        capture.set(cv2.CAP_PROP_FOURCC, fourcc)
+
+    if "size" in camera_config:
+        [width, height] = camera_config["size"]
+        capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+
+    if "fps" in camera_config:
+        fps = camera_config["fps"]
+        capture.set(cv2.CAP_PROP_FPS, fps)
+
+    if "exposure" in camera_config:
+        exposure = camera_config["exposure"]
+        capture.set(cv2.CAP_PROP_EXPOSURE, exposure)
+
+    return capture
+
+
+def create_preprocessor(camera_config):
+    camera_matrix, distortion_coefficients = (
+        load_coefficients(camera_config["calibration"])
+        if "calibration" in camera_config
+        else (None, None)
+    )
+
+    def get_rotate_code(degrees):
+        rotate_codes = {
+            0: None,
+            90: cv2.ROTATE_90_CLOCKWISE,
+            180: cv2.ROTATE_180,
+            270: cv2.ROTATE_90_COUNTERCLOCKWISE,
+        }
+        return rotate_codes.get(degrees)
+
+    def get_flip_code(flip_h, flip_v):
+        if flip_v and not flip_h:
+            return 0
+        elif not flip_v and flip_h:
+            return 1
+        elif flip_v and flip_h:
+            return -1
+        else:
+            return None
+
+    rotate_code = get_rotate_code(camera_config["rotate"])
+    flip_code = get_flip_code(camera_config["flipH"], camera_config["flipV"])
+
+    def preprocess(img):
+        if camera_matrix is not None and distortion_coefficients is not None:
+            img = cv2.undistort(img, camera_matrix, distortion_coefficients, None, None)
+        if rotate_code is not None:
+            img = cv2.rotate(img, rotate_code)
+        if flip_code is not None:
+            img = cv2.flip(img, flip_code)
+        return img
+
+    return preprocess
+
+
+def create_notifier(notify_config):
+    notifiers = []
+    if notify_config["stdout"]:
+        notifiers.append(lambda s: print(s, file=sys.stdout))
+    if notify_config["stderr"]:
+        notifiers.append(lambda s: print(s, file=sys.stderr))
+    if notify_config["remote"]:
+        http_json_poster = HttpJsonPoster(notify_config["url"])
+        notifiers.append(lambda s: http_json_poster.request_post(s))
+
+    notification_manager = NotificationManager(
+        notifiers, notify_config["interval"] if notify_config["repeat"] else None
+    )
+
+    template = notify_config["template"]
+    assign_to = notify_config["assignTo"]
+
+    def notify(new_tags):
+        notification_obj = jsonpointer.set_pointer(template, assign_to, new_tags, False)
+        notification = json.dumps(notification_obj)
+        notification_manager.notify(notification)
+
+    return notify
+
+
+def capture_and_detect(
+    capture,
+    preprocess,
     rel_margin_trbl,
     tag_detector,
-    http_json_poster,
+    notify,
 ):
-    capture = cv2.VideoCapture(0)
-
+    first_frame_index = capture.get(cv2.CAP_PROP_POS_FRAMES)
     last_detected_tags = tag_detector.create_empty_tags()
     roi = None
     img_to_renew_roi = None
@@ -158,68 +253,79 @@ def from_camera(
 
     renew_roi_interval = 5
     renew_roi_ts = float("-inf")
-    while True:
+    last_src_gray = None
+    src_has_changed = True
+
+    wait_for_key = True
+    while capture.get(cv2.CAP_PROP_FRAME_COUNT) == 0.0 or capture.get(
+        cv2.CAP_PROP_POS_FRAMES
+    ) < capture.get(cv2.CAP_PROP_FRAME_COUNT):
         frame_start_ts = time.perf_counter()
         ret, src = capture.read()
+
         src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
-        undistorted_gray = undistort(src_gray, camera_matrix, distortion_coefficients)
-        ts = time.perf_counter()
-        if ts > renew_roi_ts + renew_roi_interval:
-            renew_roi_ts = ts
-            with img_to_renew_roi_cond:
-                img_to_renew_roi = undistorted_gray
-                img_to_renew_roi_cond.notifyAll()
+        if last_src_gray is not None:
 
-        intermediates = None
-        if roi is not None:
-            detected_tags, intermediates = extract_roi_and_detect_tags(
-                undistorted_gray, roi, tag_detector
+            def absdiff(img1, img2):
+                a = img1 - img2
+                b = np.uint8(img1 < img2) * 254 + 1
+                a *= b
+                return a
+
+            diff = absdiff(last_src_gray, src_gray)
+            ret, thres = cv2.threshold(
+                diff, None, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
             )
-            if detected_tags is not None:
-                if not np.array_equal(last_detected_tags, detected_tags):
-                    print("new tags:\n", detected_tags)
-                    last_detected_tags = detected_tags
-                    http_json_poster.request_post(
-                        {"cells": last_detected_tags.tolist()}
-                    )
+            # cv2.imshow("diff", thres)
+            src_has_changed = ret > 10.0
+        last_src_gray = src_gray
 
-        visualize(
-            src,
-            camera_matrix,
-            distortion_coefficients,
-            roi,
-            intermediates.roi_image if intermediates is not None else None,
-            intermediates.tiles if intermediates is not None else None,
-        )
+        if src_has_changed:
+            undistorted_gray = preprocess(src_gray)
+            ts = time.perf_counter()
+            if ts > renew_roi_ts + renew_roi_interval:
+                renew_roi_ts = ts
+                if capture.get(cv2.CAP_PROP_POS_FRAMES) == first_frame_index + 1.0:
+                    # first frame: compute immediately in same thread
+                    roi = compute_roi(undistorted_gray, rel_margin_trbl)
+                else:
+                    # other frames: compute in background thread
+                    with img_to_renew_roi_cond:
+                        img_to_renew_roi = undistorted_gray
+                        img_to_renew_roi_cond.notifyAll()
+
+            intermediates = None
+            if roi is not None:
+                detected_tags, intermediates = extract_roi_and_detect_tags(
+                    undistorted_gray, roi, tag_detector
+                )
+
+                if detected_tags is not None:
+                    if not np.array_equal(last_detected_tags, detected_tags):
+                        notify(detected_tags.tolist())
+
+            visualize(
+                undistorted_gray,
+                roi,
+                intermediates.roi_image if intermediates is not None else None,
+                intermediates.tiles if intermediates is not None else None,
+            )
         frame_end_ts = time.perf_counter()
-        key = cv2.waitKey(max(0, 250 - int(1000 * (frame_end_ts - frame_start_ts))))
+        key = cv2.waitKey(
+            max(1, int(1000 / 15) - int(1000 * (frame_end_ts - frame_start_ts)))
+        )
         if key == 27:
+            wait_for_key = False
             break
+
+    if wait_for_key:
+        while True:
+            key = cv2.waitKey(10)
+            if key == 27:
+                break
 
     capture.release()
     cv2.destroyAllWindows()
-
-
-def from_file(camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector):
-    src = cv2.imread("snapshot.jpg")
-    src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
-    undistorted_gray = undistort(src_gray, camera_matrix, distortion_coefficients)
-
-    roi = compute_roi(undistorted_gray, rel_margin_trbl)
-    if roi is not None:
-        detected_tags, intermediates = extract_roi_and_detect_tags(
-            undistorted_gray, roi, tag_detector
-        )
-        print("tags", detected_tags)
-    visualize(
-        src,
-        camera_matrix,
-        distortion_coefficients,
-        roi,
-        intermediates.roi_image,
-        intermediates.tiles,
-    )
-    cv2.waitKey()
 
 
 def compute_abs_roi_size(frame_size, margin_trbl):
@@ -250,15 +356,19 @@ def compute_rel_gap_hv(frame_size, margin_trbl, gaps):
 if __name__ == "__main__":
 
     def init():
-        camera_matrix, distortion_coefficients = load_coefficients("camera-profile.yml")
-        http_json_poster = HttpJsonPoster("http://localhost:4848/city/map")
+        args = get_arguments()
+        config, config_with_defaults = get_config(args["CONFIG_FILE"][0])
 
-        block_shape = (4, 4)
-        grid_shape = (10, 20)
+        capture = setup_video_capture(config_with_defaults["camera"])
+        preprocess = create_preprocessor(config_with_defaults["camera"])
+        notify = create_notifier(config_with_defaults["notify"])
 
-        abs_frame_size = (916, 476)
-        abs_margin_trbl = (20, 20, 20, 20)
-        abs_gap_hv = (4, 4)
+        block_shape = tuple(config_with_defaults["dimensions"]["tile"])
+        grid_shape = tuple(config_with_defaults["dimensions"]["grid"])
+
+        abs_frame_size = tuple(config_with_defaults["dimensions"]["size"])
+        abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
+        abs_gap_hv = tuple(config_with_defaults["dimensions"]["gap"])
 
         rel_gap_hv = compute_rel_gap_hv(abs_frame_size, abs_margin_trbl, abs_gap_hv)
         rel_gap_vh = rel_gap_hv[::-1]
@@ -268,16 +378,9 @@ if __name__ == "__main__":
             grid_shape,
             block_shape,
             rel_gap_vh,
-            TAGS,
+            config_with_defaults["tags"],
         )
 
-        # from_file(camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector)
-        from_camera(
-            camera_matrix,
-            distortion_coefficients,
-            rel_margin_trbl,
-            tag_detector,
-            http_json_poster,
-        )
+        capture_and_detect(capture, preprocess, rel_margin_trbl, tag_detector, notify)
 
     init()
