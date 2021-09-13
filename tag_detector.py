@@ -35,7 +35,7 @@ class TagDetector:
         self.rel_gaps = rel_gaps
         self.__tag_shape = tag_shape
         self.__tags = tags
-        self.__tag_dict = self.create_tag_dict(tags)
+        self.__tag_dict, self.__data_for_unknown_tag = self.create_int_tag_dict(tags)
 
     @property
     def tag_shape(self):
@@ -44,7 +44,9 @@ class TagDetector:
     @tag_shape.setter
     def tag_shape(self, s):
         self.__tag_shape = s
-        self.__tag_dict = self.create_tag_dict(self.__tags)
+        self.__tag_dict, self.__data_for_unknown_tag = self.create_int_tag_dict(
+            self.__tags
+        )
 
     @property
     def tags(self):
@@ -53,7 +55,9 @@ class TagDetector:
     @tags.setter
     def tags(self, t):
         self.__tags = t
-        self.__tag_dict = self.create_tag_dict(self.__tags)
+        self.__tag_dict, self.__data_for_unknown_tag = self.create_int_tag_dict(
+            self.__tags
+        )
 
     def extract_tiles(self, img):
         tiles = np.zeros((self.grid_shape + self.tag_shape), dtype=np.uint8)
@@ -65,16 +69,18 @@ class TagDetector:
         return tiles
 
     def detect_tags(self, tiles):
-        detected_tags = np.zeros((tiles.shape[0], tiles.shape[1]), dtype=np.int32)
+        detected_tags = np.full((tiles.shape[0], tiles.shape[1]), None, dtype=object)
         for grid_y in range(self.grid_shape[0]):
             for grid_x in range(self.grid_shape[1]):
                 tile = tiles[grid_y, grid_x]
-                tile_id = self.__tag_dict.get(self.np_tag_to_int(tile), -1)
-                detected_tags[grid_y, grid_x] = tile_id
+                tile_data = self.__tag_dict.get(
+                    self.np_tag_to_int(tile), self.__data_for_unknown_tag
+                )
+                detected_tags[grid_y, grid_x] = tile_data
         return detected_tags
 
     def create_empty_tags(self):
-        return np.full(self.grid_shape, -1, dtype=np.int32)
+        return np.full(self.grid_shape, self.__data_for_unknown_tag, dtype=object)
 
     def string_tag_to_np_tag(self, string_tag):
         return np.fromstring(
@@ -103,18 +109,22 @@ class TagDetector:
                 int_tag |= mask
         return int_tag
 
-    def create_tag_dict(self, string_tags):
+    def create_int_tag_dict(self, string_tags):
+        data_for_unknown_tag = None
         tag_dict = {}
-        for idx, string_tag in enumerate(string_tags):
-            np_tag = self.string_tag_to_np_tag(string_tag)
-            tag_dict[self.np_tag_to_int(np_tag)] = idx
-            np_tag = np.rot90(np_tag)
-            tag_dict[self.np_tag_to_int(np_tag)] = idx
-            np_tag = np.rot90(np_tag)
-            tag_dict[self.np_tag_to_int(np_tag)] = idx
-            np_tag = np.rot90(np_tag)
-            tag_dict[self.np_tag_to_int(np_tag)] = idx
-        return tag_dict
+        for (string_tag, data) in string_tags.items():
+            if string_tag == "unknown":
+                data_for_unknown_tag = data
+            else:
+                np_tag = self.string_tag_to_np_tag(string_tag)
+                tag_dict[self.np_tag_to_int(np_tag)] = data
+                np_tag = np.rot90(np_tag)
+                tag_dict[self.np_tag_to_int(np_tag)] = data
+                np_tag = np.rot90(np_tag)
+                tag_dict[self.np_tag_to_int(np_tag)] = data
+                np_tag = np.rot90(np_tag)
+                tag_dict[self.np_tag_to_int(np_tag)] = data
+        return (tag_dict, data_for_unknown_tag)
 
     def tile_window(self, img, grid_x, grid_y):
         gap_height = img.shape[0] * self.rel_gaps[0]

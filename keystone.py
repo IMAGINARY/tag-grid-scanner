@@ -8,7 +8,6 @@ import numpy as np
 from arguments import get_arguments
 from config import get_config
 from utils import load_coefficients
-from tags import TAGS
 from http_json_poster import HttpJsonPoster
 from frame import detect_frame_corners
 from roi import compute_roi_shape, compute_roi_matrix, compute_roi_points
@@ -203,6 +202,7 @@ def capture_and_detect(
     tag_detector,
     http_json_poster,
 ):
+    first_frame_index = capture.get(cv2.CAP_PROP_POS_FRAMES)
     last_detected_tags = tag_detector.create_empty_tags()
     roi = None
     img_to_renew_roi = None
@@ -256,15 +256,21 @@ def capture_and_detect(
             ts = time.perf_counter()
             if ts > renew_roi_ts + renew_roi_interval:
                 renew_roi_ts = ts
-                with img_to_renew_roi_cond:
-                    img_to_renew_roi = undistorted_gray
-                    img_to_renew_roi_cond.notifyAll()
+                if capture.get(cv2.CAP_PROP_POS_FRAMES) == first_frame_index + 1.0:
+                    # first frame: compute immediately in same thread
+                    roi = compute_roi(undistorted_gray, rel_margin_trbl)
+                else:
+                    # other frames: compute in background thread
+                    with img_to_renew_roi_cond:
+                        img_to_renew_roi = undistorted_gray
+                        img_to_renew_roi_cond.notifyAll()
 
             intermediates = None
             if roi is not None:
                 detected_tags, intermediates = extract_roi_and_detect_tags(
                     undistorted_gray, roi, tag_detector
                 )
+
                 if detected_tags is not None:
                     if not np.array_equal(last_detected_tags, detected_tags):
                         print("new tags:\n", detected_tags)
@@ -351,7 +357,7 @@ if __name__ == "__main__":
             grid_shape,
             block_shape,
             rel_gap_vh,
-            TAGS,
+            config_with_defaults["tags"],
         )
 
         capture_and_detect(
