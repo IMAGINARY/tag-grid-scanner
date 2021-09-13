@@ -47,8 +47,6 @@ properties:
       id:
         "$ref": "#/$defs/nonneginteger"
         default: 0
-      name:
-        type: string
       width:
         "$ref": "#/$defs/posinteger"
       height:
@@ -57,7 +55,7 @@ properties:
         type: string
       calibration:
         type: string
-      image:
+      filename:
         type: string
       flipV:
         type: boolean
@@ -72,6 +70,9 @@ properties:
       exposure:
         "$ref": "#/$defs/posnumber"
     default: { }
+    anyOf:
+      - { required: [ id ] }
+      - { required: [ filename ] }
   dimensions:
     type: object
     properties:
