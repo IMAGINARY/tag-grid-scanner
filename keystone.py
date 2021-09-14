@@ -18,10 +18,6 @@ from roi import compute_roi_shape, compute_roi_matrix, compute_roi_points
 from tag_detector import TagDetector, tiles_to_image
 
 
-def undistort(img, camera_matrix, distortion_coefficients):
-    return cv2.undistort(img, camera_matrix, distortion_coefficients, None, None)
-
-
 def compute_roi(undistorted_img_gray, rel_margin_trbl):
     frame = detect_frame_corners(undistorted_img_gray)
 
@@ -82,35 +78,6 @@ def visualize(
         cv2.imshow("tiles", tiles_img)
     else:
         cv2.destroyWindow("tiles")
-
-
-def extract_roi_and_detect_tags_old(
-    img, camera_matrix, distortion_coefficients, rel_margin_trbl, tag_detector
-):
-    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    undistorted_gray = undistort(img_gray, camera_matrix, distortion_coefficients)
-
-    roi = compute_roi(undistorted_gray, rel_margin_trbl)
-
-    if roi is not None:
-        roi_img = extract_roi(undistorted_gray, roi.matrix, roi.shape)
-        tiles = tag_detector.extract_tiles(roi_img)
-        detected_tags = tag_detector.detect_tags(tiles)
-    else:
-        roi_img = None
-        tiles = None
-        detected_tags = None
-
-    Images = namedtuple("Images", ["gray", "undistorted_gray", "roi"])
-    images = Images(gray=img_gray, undistorted_gray=undistorted_gray, roi=roi_img)
-
-    Intermediates = namedtuple("Intermediates", ["images", "roi", "tiles"])
-
-    return detected_tags, Intermediates(
-        images=images,
-        roi=roi,
-        tiles=tiles,
-    )
 
 
 def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
