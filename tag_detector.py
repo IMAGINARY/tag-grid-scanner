@@ -158,5 +158,5 @@ class TagDetector:
             self.tag_shape,
             interpolation=cv2.INTER_AREA,
         )
-        ret, tile_small_bw = cv2.threshold(tile_small, 127, 1, cv2.THRESH_BINARY)
+        ret, tile_small_bw = cv2.threshold(tile_small, 140, 1, cv2.THRESH_BINARY)
         return tile_small_bw

@@ -50,11 +50,11 @@ def draw_frame_and_roi(undistorted_img, roi):
         np.moveaxis(frame.corners, source=1, destination=0), dtype=np.int32
     )
     frame_contours = np.expand_dims(frame.contour, axis=0)
-    cv2.drawContours(undistorted_img, frame_contours, -1, (0, 255, 255), 4)
-    cv2.polylines(undistorted_img, frame_corners, True, (0, 0, 255), 2)
+    cv2.drawContours(undistorted_img, frame_contours, -1, (255, 0, 0), 1)
+    cv2.polylines(undistorted_img, frame_corners, True, (0, 0, 255), 1)
 
     roi_corners = np.array(np.expand_dims(roi.corners, axis=0), dtype=np.int32)
-    cv2.polylines(undistorted_img, roi_corners, True, (255, 0, 0), 2)
+    cv2.polylines(undistorted_img, roi_corners, True, (0, 255, 255), 1)
 
 
 def visualize(
@@ -64,8 +64,12 @@ def visualize(
     tiles,
 ):
     if roi is not None:
-        preprocessed = preprocessed.copy()
+        preprocessed = cv2.cvtColor(preprocessed, cv2.COLOR_GRAY2BGR)
         draw_frame_and_roi(preprocessed, roi)
+    cv2.namedWindow("detected frame and roi", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(
+        "detected frame and roi", preprocessed.shape[1], preprocessed.shape[1]
+    )
     cv2.imshow("detected frame and roi", preprocessed)
 
     grid_rows = 16
