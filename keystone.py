@@ -68,14 +68,86 @@ def visualize(
         draw_frame_and_roi(preprocessed, roi)
     cv2.imshow("detected frame and roi", preprocessed)
 
+    grid_rows = 16
+    grid_cols = 16
+    tile_rows = 4
+    tile_cols = 4
+    rows = grid_rows * tile_rows
+    cols = grid_cols * tile_cols
     if roi_image is not None:
-        cv2.imshow("region of interest", roi_image)
+        roi_image_bgr = cv2.cvtColor(roi_image, cv2.COLOR_GRAY2BGR)
+        for x in range(1, cols):
+            cv2.line(
+                roi_image_bgr,
+                (int((x * roi_image_bgr.shape[1]) / cols), 0),
+                (int((x * roi_image_bgr.shape[1]) / cols), roi_image_bgr.shape[0]),
+                (255, 128, 128),
+                thickness=1,
+            )
+        for y in range(1, rows):
+            cv2.line(
+                roi_image_bgr,
+                (0, int((y * roi_image_bgr.shape[0]) / rows)),
+                (roi_image_bgr.shape[1], int((y * roi_image_bgr.shape[0]) / rows)),
+                (255, 128, 128),
+                thickness=1,
+            )
+        for x in range(1, grid_cols):
+            cv2.line(
+                roi_image_bgr,
+                (int((x * roi_image_bgr.shape[1]) / grid_cols), 0),
+                (int((x * roi_image_bgr.shape[1]) / grid_cols), roi_image_bgr.shape[0]),
+                (0, 0, 255),
+                thickness=1,
+            )
+        for y in range(1, grid_rows):
+            cv2.line(
+                roi_image_bgr,
+                (0, int((y * roi_image_bgr.shape[0]) / grid_rows)),
+                (roi_image_bgr.shape[1], int((y * roi_image_bgr.shape[0]) / grid_rows)),
+                (0, 0, 255),
+                thickness=1,
+            )
+        cv2.imshow("region of interest", roi_image_bgr)
     else:
         cv2.destroyWindow("region of interest")
 
     if tiles is not None:
-        tiles_img = tiles_to_image(tiles, scale_factor=7)
-        cv2.imshow("tiles", tiles_img)
+        tiles_img = tiles_to_image(tiles, scale_factor=8)
+        tiles_img_bgr = cv2.cvtColor(tiles_img, cv2.COLOR_GRAY2BGR)
+        for x in range(1, cols):
+            cv2.line(
+                tiles_img_bgr,
+                (int((x * tiles_img_bgr.shape[1]) / cols), 0),
+                (int((x * tiles_img_bgr.shape[1]) / cols), tiles_img_bgr.shape[0]),
+                (255, 128, 128),
+                thickness=1,
+            )
+        for y in range(1, rows):
+            cv2.line(
+                tiles_img_bgr,
+                (0, int((y * tiles_img_bgr.shape[0]) / rows)),
+                (tiles_img_bgr.shape[1], int((y * tiles_img_bgr.shape[0]) / rows)),
+                (255, 128, 128),
+                thickness=1,
+            )
+        for x in range(1, grid_cols):
+            cv2.line(
+                tiles_img_bgr,
+                (int((x * tiles_img_bgr.shape[1]) / grid_cols), 0),
+                (int((x * tiles_img_bgr.shape[1]) / grid_cols), tiles_img_bgr.shape[0]),
+                (0, 0, 255),
+                thickness=1,
+            )
+        for y in range(1, grid_rows):
+            cv2.line(
+                tiles_img_bgr,
+                (0, int((y * tiles_img_bgr.shape[0]) / grid_rows)),
+                (tiles_img_bgr.shape[1], int((y * tiles_img_bgr.shape[0]) / grid_rows)),
+                (0, 0, 255),
+                thickness=1,
+            )
+        cv2.imshow("tiles", tiles_img_bgr)
     else:
         cv2.destroyWindow("tiles")
 

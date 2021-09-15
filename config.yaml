@@ -4,11 +4,11 @@ camera:
   size: [ 1920, 1080 ]
   fps: 30
   fourcc: MJPEG
-  calibration: camera-profile-1920x1080-36.yml
+  calibration: camera-profile.yml
   #filename: 'snapshot.jpg'
   flipV: true
   flipH: false
-  rotate: 180
+  rotate: 0
   exposure: 1.0
 dimensions:
   grid: [ 16, 16 ]
