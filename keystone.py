@@ -82,6 +82,10 @@ def visualize(
 
 def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
     roi_img = extract_roi(undistorted_img_gray, roi.matrix, roi.shape)
+    roi_img = cv2.adaptiveThreshold(
+        roi_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 101, 10
+    )
+
     tiles = tag_detector.extract_tiles(roi_img)
     detected_tags = tag_detector.detect_tags(tiles)
 
@@ -218,10 +222,13 @@ def capture_and_detect(
     roi_thread = threading.Thread(target=renew_roi, daemon=True)
     roi_thread.start()
 
-    renew_roi_interval = 5
+    renew_roi_interval = 1
     renew_roi_ts = float("-inf")
     last_src_gray = None
     src_has_changed = True
+    src_for_roi_has_changed = True
+
+    start_ts = time.perf_counter()
 
     wait_for_key = True
     while capture.get(cv2.CAP_PROP_FRAME_COUNT) == 0.0 or capture.get(
@@ -231,6 +238,7 @@ def capture_and_detect(
         ret, src = capture.read()
 
         src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+
         if last_src_gray is not None:
 
             def absdiff(img1, img2):
@@ -244,13 +252,14 @@ def capture_and_detect(
                 diff, None, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
             )
             # cv2.imshow("diff", thres)
-            src_has_changed = ret > 10.0
+            src_has_changed = True  # ret > 10.0
+            src_for_roi_has_changed = src_has_changed
         last_src_gray = src_gray
 
-        if src_has_changed:
+        if src_for_roi_has_changed:
             undistorted_gray = preprocess(src_gray)
             ts = time.perf_counter()
-            if ts > renew_roi_ts + renew_roi_interval:
+            if ts > renew_roi_ts + renew_roi_interval and start_ts + 5.0 >= ts:
                 renew_roi_ts = ts
                 if capture.get(cv2.CAP_PROP_POS_FRAMES) == first_frame_index + 1.0:
                     # first frame: compute immediately in same thread
@@ -261,22 +270,23 @@ def capture_and_detect(
                         img_to_renew_roi = undistorted_gray
                         img_to_renew_roi_cond.notifyAll()
 
-            intermediates = None
-            if roi is not None:
-                detected_tags, intermediates = extract_roi_and_detect_tags(
-                    undistorted_gray, roi, tag_detector
+            if src_has_changed:
+                intermediates = None
+                if roi is not None:
+                    detected_tags, intermediates = extract_roi_and_detect_tags(
+                        undistorted_gray, roi, tag_detector
+                    )
+
+                    if detected_tags is not None:
+                        if not np.array_equal(last_detected_tags, detected_tags):
+                            notify(detected_tags.tolist())
+
+                visualize(
+                    undistorted_gray,
+                    roi,
+                    intermediates.roi_image if intermediates is not None else None,
+                    intermediates.tiles if intermediates is not None else None,
                 )
-
-                if detected_tags is not None:
-                    if not np.array_equal(last_detected_tags, detected_tags):
-                        notify(detected_tags.tolist())
-
-            visualize(
-                undistorted_gray,
-                roi,
-                intermediates.roi_image if intermediates is not None else None,
-                intermediates.tiles if intermediates is not None else None,
-            )
         frame_end_ts = time.perf_counter()
         key = cv2.waitKey(
             max(1, int(1000 / 15) - int(1000 * (frame_end_ts - frame_start_ts)))
@@ -341,11 +351,15 @@ if __name__ == "__main__":
         rel_gap_vh = rel_gap_hv[::-1]
 
         rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
+        mirror_tags = bool(config_with_defaults["camera"]["flipH"]) != bool(
+            config_with_defaults["camera"]["flipV"]
+        )
         tag_detector = TagDetector(
             grid_shape,
             block_shape,
             rel_gap_vh,
             config_with_defaults["tags"],
+            mirror_tags,
         )
 
         capture_and_detect(capture, preprocess, rel_margin_trbl, tag_detector, notify)
