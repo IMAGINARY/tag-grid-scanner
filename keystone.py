@@ -18,11 +18,11 @@ from roi import compute_roi_shape, compute_roi_matrix, compute_roi_points
 from tag_detector import TagDetector, tiles_to_image
 
 
-def compute_roi(undistorted_img_gray, rel_margin_trbl):
+def compute_roi(undistorted_img_gray, rel_margin_trbl, aspect_ratio):
     frame = detect_frame_corners(undistorted_img_gray)
 
     if frame is not None:
-        roi_shape = compute_roi_shape(rel_margin_trbl, frame.corners)
+        roi_shape = compute_roi_shape(rel_margin_trbl, frame.corners, aspect_ratio)
         roi_matrix = compute_roi_matrix(rel_margin_trbl, frame.corners, roi_shape)
 
         Roi = namedtuple("Roi", ["shape", "matrix", "corners", "frame"])
@@ -279,12 +279,15 @@ def capture_and_detect(
     roi = None
     img_to_renew_roi = None
     img_to_renew_roi_cond = threading.Condition()
+    aspect_ratio = (tag_detector.grid_shape[0] * tag_detector.tag_shape[0]) / (
+        tag_detector.grid_shape[1] * tag_detector.tag_shape[1]
+    )
 
     def renew_roi():
         nonlocal img_to_renew_roi
         while True:
             if img_to_renew_roi is not None:
-                new_roi = compute_roi(img_to_renew_roi, rel_margin_trbl)
+                new_roi = compute_roi(img_to_renew_roi, rel_margin_trbl, aspect_ratio)
                 if new_roi is not None:
                     nonlocal roi
                     roi = new_roi

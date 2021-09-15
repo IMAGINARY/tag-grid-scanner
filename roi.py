@@ -22,7 +22,7 @@ def create_unit_frame_corners():
     return create_frame_corners((1, 1))
 
 
-def compute_roi_shape(rel_margins_trbl, frame_corners):
+def compute_roi_shape(rel_margins_trbl, frame_corners, aspect_ratio):
     roi_to_frame_ratio = (
         1 - (rel_margins_trbl[0] + rel_margins_trbl[2]),
         1 - (rel_margins_trbl[1] + rel_margins_trbl[3]),
@@ -32,11 +32,18 @@ def compute_roi_shape(rel_margins_trbl, frame_corners):
 
     dist_v_left = distance(p[3], p[0])
     dist_v_right = distance(p[1], p[2])
-    h = math.ceil(roi_to_frame_ratio[0] * max(dist_v_left, dist_v_right))
+    dist_v = max(dist_v_left, dist_v_right)
 
     dist_h_top = distance(p[0], p[1])
     dist_h_bottom = distance(p[2], p[3])
-    w = math.ceil(roi_to_frame_ratio[1] * max(dist_h_top, dist_h_bottom))
+    dist_h = max(dist_h_top, dist_h_bottom)
+
+    if dist_v * aspect_ratio > dist_h:
+        h = math.ceil(roi_to_frame_ratio[0] * dist_v)
+        w = math.ceil(roi_to_frame_ratio[1] * dist_v * aspect_ratio)
+    else:
+        h = math.ceil(roi_to_frame_ratio[0] * dist_h / aspect_ratio)
+        w = math.ceil(roi_to_frame_ratio[1] * dist_h)
 
     return h, w
 
