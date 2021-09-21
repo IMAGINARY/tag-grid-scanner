@@ -30,9 +30,10 @@ def tiles_to_image(tiles, max_value=255, scale_factor=1):
 
 
 class TagDetector:
-    def __init__(self, grid_shape, tag_shape, rel_gaps, tags):
+    def __init__(self, grid_shape, tag_shape, rel_gaps, tags, mirror=False):
         self.grid_shape = grid_shape
         self.rel_gaps = rel_gaps
+        self.mirror = mirror
         self.__tag_shape = tag_shape
         self.__tags = tags
         self.__tag_dict, self.__data_for_unknown_tag = self.create_int_tag_dict(tags)
@@ -117,6 +118,8 @@ class TagDetector:
                 data_for_unknown_tag = data
             else:
                 np_tag = self.string_tag_to_np_tag(string_tag)
+                if self.mirror:
+                    np_tag = np.fliplr(np_tag)
                 tag_dict[self.np_tag_to_int(np_tag)] = data
                 np_tag = np.rot90(np_tag)
                 tag_dict[self.np_tag_to_int(np_tag)] = data
@@ -155,7 +158,5 @@ class TagDetector:
             self.tag_shape,
             interpolation=cv2.INTER_AREA,
         )
-        ret, tile_small_bw = cv2.threshold(
-            tile_small, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )
+        ret, tile_small_bw = cv2.threshold(tile_small, 140, 1, cv2.THRESH_BINARY)
         return tile_small_bw

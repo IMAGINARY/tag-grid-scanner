@@ -6,7 +6,7 @@ from tags import TAGS
 
 # "shape" is always numpy-style (height, width)
 
-GRID_SHAPE = (10, 20)
+GRID_SHAPE = (16, 16)
 TAG_SHAPE = (4, 4)
 NUM_TAG_ELEMENTS = TAG_SHAPE[1] * TAG_SHAPE[0]
 
@@ -16,7 +16,7 @@ TILE_SHAPE = (
     TAG_SHAPE[1] * TILE_ELEMENT_SHAPE[1],
 )
 
-GAP_VH = (4, 4)
+GAP_VH = (2, 2)
 TILE_SIZE_WITH_GAP = (TILE_SHAPE[0] + GAP_VH[0], TILE_SHAPE[1] + GAP_VH[1])
 
 PATTERN_SHAPE = (
