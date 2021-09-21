@@ -8,6 +8,7 @@ def get_argument_parser():
         "COMMAND",
         choices=["scan"],
         const="scan",
+        default="scan",
         nargs="?",
         help="command to execute",
     )
