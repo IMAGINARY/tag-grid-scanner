@@ -94,13 +94,7 @@ def draw_grid(img, grid_shape, tile_shape):
         )
 
 
-def visualize(
-    preprocessed,
-    roi,
-    roi_image,
-    roi_image_threshold,
-    tiles,
-):
+def visualize(preprocessed, roi, roi_image, roi_image_threshold, tiles, tag_detector):
     if roi is not None:
         preprocessed = cv2.cvtColor(preprocessed, cv2.COLOR_GRAY2BGR)
         draw_frame_and_roi(preprocessed, roi)
@@ -112,14 +106,16 @@ def visualize(
 
     if roi_image is not None:
         roi_image_bgr = cv2.cvtColor(roi_image, cv2.COLOR_GRAY2BGR)
-        draw_grid(roi_image_bgr, (16, 16), (4, 4))
+        draw_grid(roi_image_bgr, tag_detector.grid_shape, tag_detector.tag_shape)
         cv2.imshow("region of interest", roi_image_bgr)
     else:
         cv2.destroyWindow("region of interest")
 
     if roi_image_threshold is not None:
         roi_image_threshold_bgr = cv2.cvtColor(roi_image_threshold, cv2.COLOR_GRAY2BGR)
-        draw_grid(roi_image_threshold_bgr, (16, 16), (4, 4))
+        draw_grid(
+            roi_image_threshold_bgr, tag_detector.grid_shape, tag_detector.tag_shape
+        )
         cv2.imshow("region of interest (threshold)", roi_image_threshold_bgr)
     else:
         cv2.destroyWindow("region of interest")
@@ -127,7 +123,7 @@ def visualize(
     if tiles is not None:
         tiles_img = tiles_to_image(tiles, scale_factor=8)
         tiles_img_bgr = cv2.cvtColor(tiles_img, cv2.COLOR_GRAY2BGR)
-        draw_grid(tiles_img_bgr, (16, 16), (4, 4))
+        draw_grid(tiles_img_bgr, tag_detector.grid_shape, tag_detector.tag_shape)
         cv2.imshow("tiles", tiles_img_bgr)
     else:
         cv2.destroyWindow("tiles")
@@ -348,6 +344,7 @@ def capture_and_detect(
                     if intermediates is not None
                     else None,
                     intermediates.tiles if intermediates is not None else None,
+                    tag_detector,
                 )
         frame_end_ts = time.perf_counter()
         key = cv2.waitKey(
