@@ -57,10 +57,48 @@ def draw_frame_and_roi(undistorted_img, roi):
     cv2.polylines(undistorted_img, roi_corners, True, (0, 255, 255), 1)
 
 
+def draw_grid(img, grid_shape, tile_shape):
+    rows = grid_shape[0] * tile_shape[0]
+    cols = grid_shape[1] * tile_shape[1]
+    for x in range(1, cols):
+        cv2.line(
+            img,
+            (int((x * img.shape[1]) / cols), 0),
+            (int((x * img.shape[1]) / cols), img.shape[0]),
+            (255, 128, 128),
+            thickness=1,
+        )
+    for y in range(1, rows):
+        cv2.line(
+            img,
+            (0, int((y * img.shape[0]) / rows)),
+            (img.shape[1], int((y * img.shape[0]) / rows)),
+            (255, 128, 128),
+            thickness=1,
+        )
+    for x in range(1, grid_shape[1]):
+        cv2.line(
+            img,
+            (int((x * img.shape[1]) / grid_shape[1]), 0),
+            (int((x * img.shape[1]) / grid_shape[1]), img.shape[0]),
+            (0, 0, 255),
+            thickness=1,
+        )
+    for y in range(1, grid_shape[0]):
+        cv2.line(
+            img,
+            (0, int((y * img.shape[0]) / grid_shape[0])),
+            (img.shape[1], int((y * img.shape[0]) / grid_shape[0])),
+            (0, 0, 255),
+            thickness=1,
+        )
+
+
 def visualize(
     preprocessed,
     roi,
     roi_image,
+    roi_image_threshold,
     tiles,
 ):
     if roi is not None:
@@ -72,85 +110,24 @@ def visualize(
     )
     cv2.imshow("detected frame and roi", preprocessed)
 
-    grid_rows = 16
-    grid_cols = 16
-    tile_rows = 4
-    tile_cols = 4
-    rows = grid_rows * tile_rows
-    cols = grid_cols * tile_cols
     if roi_image is not None:
         roi_image_bgr = cv2.cvtColor(roi_image, cv2.COLOR_GRAY2BGR)
-        for x in range(1, cols):
-            cv2.line(
-                roi_image_bgr,
-                (int((x * roi_image_bgr.shape[1]) / cols), 0),
-                (int((x * roi_image_bgr.shape[1]) / cols), roi_image_bgr.shape[0]),
-                (255, 128, 128),
-                thickness=1,
-            )
-        for y in range(1, rows):
-            cv2.line(
-                roi_image_bgr,
-                (0, int((y * roi_image_bgr.shape[0]) / rows)),
-                (roi_image_bgr.shape[1], int((y * roi_image_bgr.shape[0]) / rows)),
-                (255, 128, 128),
-                thickness=1,
-            )
-        for x in range(1, grid_cols):
-            cv2.line(
-                roi_image_bgr,
-                (int((x * roi_image_bgr.shape[1]) / grid_cols), 0),
-                (int((x * roi_image_bgr.shape[1]) / grid_cols), roi_image_bgr.shape[0]),
-                (0, 0, 255),
-                thickness=1,
-            )
-        for y in range(1, grid_rows):
-            cv2.line(
-                roi_image_bgr,
-                (0, int((y * roi_image_bgr.shape[0]) / grid_rows)),
-                (roi_image_bgr.shape[1], int((y * roi_image_bgr.shape[0]) / grid_rows)),
-                (0, 0, 255),
-                thickness=1,
-            )
+        draw_grid(roi_image_bgr, (16, 16), (4, 4))
         cv2.imshow("region of interest", roi_image_bgr)
+    else:
+        cv2.destroyWindow("region of interest")
+
+    if roi_image_threshold is not None:
+        roi_image_threshold_bgr = cv2.cvtColor(roi_image_threshold, cv2.COLOR_GRAY2BGR)
+        draw_grid(roi_image_threshold_bgr, (16, 16), (4, 4))
+        cv2.imshow("region of interest (threshold)", roi_image_threshold_bgr)
     else:
         cv2.destroyWindow("region of interest")
 
     if tiles is not None:
         tiles_img = tiles_to_image(tiles, scale_factor=8)
         tiles_img_bgr = cv2.cvtColor(tiles_img, cv2.COLOR_GRAY2BGR)
-        for x in range(1, cols):
-            cv2.line(
-                tiles_img_bgr,
-                (int((x * tiles_img_bgr.shape[1]) / cols), 0),
-                (int((x * tiles_img_bgr.shape[1]) / cols), tiles_img_bgr.shape[0]),
-                (255, 128, 128),
-                thickness=1,
-            )
-        for y in range(1, rows):
-            cv2.line(
-                tiles_img_bgr,
-                (0, int((y * tiles_img_bgr.shape[0]) / rows)),
-                (tiles_img_bgr.shape[1], int((y * tiles_img_bgr.shape[0]) / rows)),
-                (255, 128, 128),
-                thickness=1,
-            )
-        for x in range(1, grid_cols):
-            cv2.line(
-                tiles_img_bgr,
-                (int((x * tiles_img_bgr.shape[1]) / grid_cols), 0),
-                (int((x * tiles_img_bgr.shape[1]) / grid_cols), tiles_img_bgr.shape[0]),
-                (0, 0, 255),
-                thickness=1,
-            )
-        for y in range(1, grid_rows):
-            cv2.line(
-                tiles_img_bgr,
-                (0, int((y * tiles_img_bgr.shape[0]) / grid_rows)),
-                (tiles_img_bgr.shape[1], int((y * tiles_img_bgr.shape[0]) / grid_rows)),
-                (0, 0, 255),
-                thickness=1,
-            )
+        draw_grid(tiles_img_bgr, (16, 16), (4, 4))
         cv2.imshow("tiles", tiles_img_bgr)
     else:
         cv2.destroyWindow("tiles")
@@ -158,17 +135,20 @@ def visualize(
 
 def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
     roi_img = extract_roi(undistorted_img_gray, roi.matrix, roi.shape)
-    roi_img = cv2.adaptiveThreshold(
+    roi_img_threshold = cv2.adaptiveThreshold(
         roi_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 101, 10
     )
 
-    tiles = tag_detector.extract_tiles(roi_img)
+    tiles = tag_detector.extract_tiles(roi_img_threshold)
     detected_tags = tag_detector.detect_tags(tiles)
 
-    Intermediates = namedtuple("Intermediates", ["roi_image", "tiles"])
+    Intermediates = namedtuple(
+        "Intermediates", ["roi_image", "roi_image_threshold", "tiles"]
+    )
 
     return detected_tags, Intermediates(
         roi_image=roi_img,
+        roi_image_threshold=roi_img_threshold,
         tiles=tiles,
     )
 
@@ -342,7 +322,7 @@ def capture_and_detect(
                 renew_roi_ts = ts
                 if capture.get(cv2.CAP_PROP_POS_FRAMES) == first_frame_index + 1.0:
                     # first frame: compute immediately in same thread
-                    roi = compute_roi(undistorted_gray, rel_margin_trbl)
+                    roi = compute_roi(undistorted_gray, rel_margin_trbl, aspect_ratio)
                 else:
                     # other frames: compute in background thread
                     with img_to_renew_roi_cond:
@@ -364,6 +344,9 @@ def capture_and_detect(
                     undistorted_gray,
                     roi,
                     intermediates.roi_image if intermediates is not None else None,
+                    intermediates.roi_image_threshold
+                    if intermediates is not None
+                    else None,
                     intermediates.tiles if intermediates is not None else None,
                 )
         frame_end_ts = time.perf_counter()
