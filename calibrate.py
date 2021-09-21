@@ -98,4 +98,4 @@ cv2.destroyAllWindows()
 cv2.imwrite("before.jpg", last_frame)
 cv2.imwrite("after.jpg", undistorted)
 
-save_coefficients(matrix, distortion, "camera-profile.yml")
+save_coefficients(matrix, distortion, "profiles/camera-profile.yml")
