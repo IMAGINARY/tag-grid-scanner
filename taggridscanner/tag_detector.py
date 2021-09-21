@@ -75,40 +75,13 @@ class TagDetector:
             for grid_x in range(self.grid_shape[1]):
                 tile = tiles[grid_y, grid_x]
                 tile_data = self.__tag_dict.get(
-                    self.np_tag_to_int(tile), self.__data_for_unknown_tag
+                    np_tag_to_int(tile, self.tag_shape), self.__data_for_unknown_tag
                 )
                 detected_tags[grid_y, grid_x] = tile_data
         return detected_tags
 
     def create_empty_tags(self):
         return np.full(self.grid_shape, self.__data_for_unknown_tag, dtype=object)
-
-    def string_tag_to_np_tag(self, string_tag):
-        return np.fromstring(
-            ",".join(list(string_tag)),
-            np.uint8,
-            self.tag_shape[0] * self.tag_shape[1],
-            ",",
-        ).reshape(self.tag_shape)
-
-    def np_tag_to_string_tag(self, np_tag):
-        return "".join(
-            str(e) for e in list(np_tag.reshape(self.tag_shape[0] * self.tag_shape[1]))
-        )
-
-    def string_tag_to_int(self, string_tag):
-        return int(string_tag, 2)
-
-    def np_tag_to_int(self, np_tag):
-        tag_size_linear = self.tag_shape[0] * self.tag_shape[1]
-        np_tag_linear = np_tag.reshape(tag_size_linear)
-        mask = 1 << tag_size_linear
-        int_tag = 0
-        for bit in np_tag_linear:
-            mask >>= 1
-            if bit:
-                int_tag |= mask
-        return int_tag
 
     def create_int_tag_dict(self, string_tags):
         data_for_unknown_tag = None
@@ -117,16 +90,16 @@ class TagDetector:
             if string_tag == "unknown":
                 data_for_unknown_tag = data
             else:
-                np_tag = self.string_tag_to_np_tag(string_tag)
+                np_tag = string_tag_to_np_tag(string_tag, self.tag_shape)
                 if self.mirror:
                     np_tag = np.fliplr(np_tag)
-                tag_dict[self.np_tag_to_int(np_tag)] = data
+                tag_dict[np_tag_to_int(np_tag, self.tag_shape)] = data
                 np_tag = np.rot90(np_tag)
-                tag_dict[self.np_tag_to_int(np_tag)] = data
+                tag_dict[np_tag_to_int(np_tag, self.tag_shape)] = data
                 np_tag = np.rot90(np_tag)
-                tag_dict[self.np_tag_to_int(np_tag)] = data
+                tag_dict[np_tag_to_int(np_tag, self.tag_shape)] = data
                 np_tag = np.rot90(np_tag)
-                tag_dict[self.np_tag_to_int(np_tag)] = data
+                tag_dict[np_tag_to_int(np_tag, self.tag_shape)] = data
         return (tag_dict, data_for_unknown_tag)
 
     def tile_window(self, img, grid_x, grid_y):
@@ -160,3 +133,32 @@ class TagDetector:
         )
         ret, tile_small_bw = cv2.threshold(tile_small, 140, 1, cv2.THRESH_BINARY)
         return tile_small_bw
+
+
+def string_tag_to_np_tag(string_tag, tag_shape):
+    return np.fromstring(
+        ",".join(list(string_tag)),
+        np.uint8,
+        tag_shape[0] * tag_shape[1],
+        ",",
+    ).reshape(tag_shape)
+
+
+def np_tag_to_string_tag(np_tag, tag_shape):
+    return "".join(str(e) for e in list(np_tag.reshape(tag_shape[0] * tag_shape[1])))
+
+
+def string_tag_to_int(string_tag):
+    return int(string_tag, 2)
+
+
+def np_tag_to_int(np_tag, tag_shape):
+    tag_size_linear = tag_shape[0] * tag_shape[1]
+    np_tag_linear = np_tag.reshape(tag_size_linear)
+    mask = 1 << tag_size_linear
+    int_tag = 0
+    for bit in np_tag_linear:
+        mask >>= 1
+        if bit:
+            int_tag |= mask
+    return int_tag

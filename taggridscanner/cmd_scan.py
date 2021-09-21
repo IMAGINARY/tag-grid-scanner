@@ -9,7 +9,12 @@ import cv2
 import numpy as np
 
 from .notification_manager import NotificationManager
-from .utils import load_coefficients
+from .utils import (
+    load_coefficients,
+    compute_rel_margin_trbl,
+    compute_rel_gap_hv,
+    create_preprocessor,
+)
 from .http_json_poster import HttpJsonPoster
 from .frame import detect_frame_corners
 from .roi import compute_roi_shape, compute_roi_matrix, compute_roi_points
@@ -179,47 +184,6 @@ def setup_video_capture(camera_config):
     return capture
 
 
-def create_preprocessor(camera_config):
-    camera_matrix, distortion_coefficients = (
-        load_coefficients(camera_config["calibration"])
-        if "calibration" in camera_config
-        else (None, None)
-    )
-
-    def get_rotate_code(degrees):
-        rotate_codes = {
-            0: None,
-            90: cv2.ROTATE_90_CLOCKWISE,
-            180: cv2.ROTATE_180,
-            270: cv2.ROTATE_90_COUNTERCLOCKWISE,
-        }
-        return rotate_codes.get(degrees)
-
-    def get_flip_code(flip_h, flip_v):
-        if flip_v and not flip_h:
-            return 0
-        elif not flip_v and flip_h:
-            return 1
-        elif flip_v and flip_h:
-            return -1
-        else:
-            return None
-
-    rotate_code = get_rotate_code(camera_config["rotate"])
-    flip_code = get_flip_code(camera_config["flipH"], camera_config["flipV"])
-
-    def preprocess(img):
-        if camera_matrix is not None and distortion_coefficients is not None:
-            img = cv2.undistort(img, camera_matrix, distortion_coefficients, None, None)
-        if rotate_code is not None:
-            img = cv2.rotate(img, rotate_code)
-        if flip_code is not None:
-            img = cv2.flip(img, flip_code)
-        return img
-
-    return preprocess
-
-
 def create_notifier(notify_config):
     notifiers = []
     if notify_config["stdout"]:
@@ -360,31 +324,6 @@ def capture_and_detect(
 
     capture.release()
     cv2.destroyAllWindows()
-
-
-def compute_abs_roi_size(frame_size, margin_trbl):
-    roi_width = frame_size[0] - (margin_trbl[1] + margin_trbl[3])
-    roi_height = frame_size[1] - (margin_trbl[0] + margin_trbl[2])
-    return roi_width, roi_height
-
-
-def compute_rel_roi_size(frame_size, margin_trbl):
-    abs_roi_size = compute_abs_roi_size(frame_size, margin_trbl)
-    return abs_roi_size[0] / frame_size[0], abs_roi_size[0] / frame_size[0]
-
-
-def compute_rel_margin_trbl(frame_size, margin_trbl):
-    return (
-        margin_trbl[0] / frame_size[1],
-        margin_trbl[1] / frame_size[0],
-        margin_trbl[2] / frame_size[1],
-        margin_trbl[3] / frame_size[0],
-    )
-
-
-def compute_rel_gap_hv(frame_size, margin_trbl, gaps):
-    abs_roi_size = compute_abs_roi_size(frame_size, margin_trbl)
-    return gaps[0] / abs_roi_size[0], gaps[1] / abs_roi_size[1]
 
 
 def scan(args, config, config_with_defaults):
