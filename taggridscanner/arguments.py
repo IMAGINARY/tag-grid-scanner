@@ -5,6 +5,13 @@ import pathlib
 def get_argument_parser():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
+        "COMMAND",
+        choices=["scan"],
+        const="scan",
+        nargs="?",
+        help="command to execute",
+    )
+    parser.add_argument(
         "CONFIG_FILE",
         type=pathlib.Path,
         nargs=1,

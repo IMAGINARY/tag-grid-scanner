@@ -8,14 +8,14 @@ from collections import namedtuple
 import cv2
 import numpy as np
 
-from arguments import get_arguments
-from config import get_config
-from notification_manager import NotificationManager
-from utils import load_coefficients
-from http_json_poster import HttpJsonPoster
-from frame import detect_frame_corners
-from roi import compute_roi_shape, compute_roi_matrix, compute_roi_points
-from tag_detector import TagDetector, tiles_to_image
+from .arguments import get_arguments
+from .config import get_config
+from .notification_manager import NotificationManager
+from .utils import load_coefficients
+from .http_json_poster import HttpJsonPoster
+from .frame import detect_frame_corners
+from .roi import compute_roi_shape, compute_roi_matrix, compute_roi_points
+from .tag_detector import TagDetector, tiles_to_image
 
 
 def compute_roi(undistorted_img_gray, rel_margin_trbl, aspect_ratio):
@@ -389,38 +389,34 @@ def compute_rel_gap_hv(frame_size, margin_trbl, gaps):
     return gaps[0] / abs_roi_size[0], gaps[1] / abs_roi_size[1]
 
 
-if __name__ == "__main__":
+def main():
+    args = get_arguments()
+    config, config_with_defaults = get_config(args["CONFIG_FILE"][0])
 
-    def init():
-        args = get_arguments()
-        config, config_with_defaults = get_config(args["CONFIG_FILE"][0])
+    capture = setup_video_capture(config_with_defaults["camera"])
+    preprocess = create_preprocessor(config_with_defaults["camera"])
+    notify = create_notifier(config_with_defaults["notify"])
 
-        capture = setup_video_capture(config_with_defaults["camera"])
-        preprocess = create_preprocessor(config_with_defaults["camera"])
-        notify = create_notifier(config_with_defaults["notify"])
+    block_shape = tuple(config_with_defaults["dimensions"]["tile"])
+    grid_shape = tuple(config_with_defaults["dimensions"]["grid"])
 
-        block_shape = tuple(config_with_defaults["dimensions"]["tile"])
-        grid_shape = tuple(config_with_defaults["dimensions"]["grid"])
+    abs_frame_size = tuple(config_with_defaults["dimensions"]["size"])
+    abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
+    abs_gap_hv = tuple(config_with_defaults["dimensions"]["gap"])
 
-        abs_frame_size = tuple(config_with_defaults["dimensions"]["size"])
-        abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
-        abs_gap_hv = tuple(config_with_defaults["dimensions"]["gap"])
+    rel_gap_hv = compute_rel_gap_hv(abs_frame_size, abs_margin_trbl, abs_gap_hv)
+    rel_gap_vh = rel_gap_hv[::-1]
 
-        rel_gap_hv = compute_rel_gap_hv(abs_frame_size, abs_margin_trbl, abs_gap_hv)
-        rel_gap_vh = rel_gap_hv[::-1]
+    rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
+    mirror_tags = bool(config_with_defaults["camera"]["flipH"]) != bool(
+        config_with_defaults["camera"]["flipV"]
+    )
+    tag_detector = TagDetector(
+        grid_shape,
+        block_shape,
+        rel_gap_vh,
+        config_with_defaults["tags"],
+        mirror_tags,
+    )
 
-        rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
-        mirror_tags = bool(config_with_defaults["camera"]["flipH"]) != bool(
-            config_with_defaults["camera"]["flipV"]
-        )
-        tag_detector = TagDetector(
-            grid_shape,
-            block_shape,
-            rel_gap_vh,
-            config_with_defaults["tags"],
-            mirror_tags,
-        )
-
-        capture_and_detect(capture, preprocess, rel_margin_trbl, tag_detector, notify)
-
-    init()
+    capture_and_detect(capture, preprocess, rel_margin_trbl, tag_detector, notify)
