@@ -118,10 +118,10 @@ def create_preprocessor(camera_config):
 
 
 def select_capture_source(camera_config):
-    if "filename" in camera_config:
-        return camera_config["filename"]
-    else:
+    if "id" in camera_config:
         return camera_config["id"]
+    else:
+        return camera_config["filename"]
 
 
 def setup_video_capture(camera_config):

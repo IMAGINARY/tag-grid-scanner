@@ -64,6 +64,11 @@ def preprocess_config(config, config_path):
         ).resolve()
         config["camera"]["calibration"] = str(calibration_path)
 
+    if "filemame" in config["camera"]:
+        config_dir = pathlib.Path(config_path).parent.resolve()
+        filename_path = pathlib.Path(config_dir, config["camera"]["filename"]).resolve()
+        config["camera"]["filename"] = str(filename_path)
+
     config["dimensions"]["tile"] = config["dimensions"]["tile"][::-1]
     config["dimensions"]["grid"] = config["dimensions"]["grid"][::-1]
     config["dimensions"]["size"] = config["dimensions"]["size"][::-1]

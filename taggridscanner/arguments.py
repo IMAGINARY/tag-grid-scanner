@@ -6,7 +6,7 @@ def get_argument_parser():
     parser = argparse.ArgumentParser(description="")
     parser.add_argument(
         "COMMAND",
-        choices=["scan", "display", "calibrate"],
+        choices=["scan", "display", "calibrate", "snapshot"],
         const="scan",
         default="scan",
         nargs="?",
