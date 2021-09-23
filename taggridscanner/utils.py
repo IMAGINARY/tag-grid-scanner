@@ -115,3 +115,35 @@ def create_preprocessor(camera_config):
         return linear_transform(img)
 
     return preprocess
+
+
+def select_capture_source(camera_config):
+    if "filename" in camera_config:
+        return camera_config["filename"]
+    else:
+        return camera_config["id"]
+
+
+def setup_video_capture(camera_config):
+    source = select_capture_source(camera_config)
+    capture = cv2.VideoCapture(source)
+
+    if "fourcc" in camera_config:
+        s = camera_config["fourcc"]
+        fourcc = cv2.VideoWriter_fourcc(s[0], s[1], s[2], s[3])
+        capture.set(cv2.CAP_PROP_FOURCC, fourcc)
+
+    if "size" in camera_config:
+        [height, width] = camera_config["size"]
+        capture.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+        capture.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+
+    if "fps" in camera_config:
+        fps = camera_config["fps"]
+        capture.set(cv2.CAP_PROP_FPS, fps)
+
+    if "exposure" in camera_config:
+        exposure = camera_config["exposure"]
+        capture.set(cv2.CAP_PROP_EXPOSURE, exposure)
+
+    return capture
