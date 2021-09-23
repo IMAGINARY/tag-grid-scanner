@@ -44,7 +44,7 @@ def compute_rel_margin_trbl(frame_size, margin_trbl):
     )
 
 
-def compute_rel_gap_hv(frame_size, margin_trbl, gaps):
+def compute_rel_gap(frame_size, margin_trbl, gaps):
     abs_roi_size = compute_abs_roi_size(frame_size, margin_trbl)
     return gaps[0] / abs_roi_size[0], gaps[1] / abs_roi_size[1]
 

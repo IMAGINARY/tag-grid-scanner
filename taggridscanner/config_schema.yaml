@@ -47,26 +47,24 @@ properties:
       id:
         "$ref": "#/$defs/nonneginteger"
         default: 0
-      width:
-        "$ref": "#/$defs/posinteger"
-      height:
-        "$ref": "#/$defs/posinteger"
+      size:
+        "$ref": "#/$defs/posivec2"
       fourcc:
         type: string
       calibration:
         type: string
       filename:
         type: string
+      rotate:
+        type: integer
+        enum: [ 0, 90, 180, 270 ]
+        default: 0
       flipV:
         type: boolean
         default: false
       flipH:
         type: boolean
         default: false
-      rotate:
-        type: integer
-        enum: [ 0, 90, 180, 270 ]
-        default: 0
       exposure:
         "$ref": "#/$defs/posnumber"
     default: { }

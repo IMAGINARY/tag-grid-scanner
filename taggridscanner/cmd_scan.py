@@ -13,7 +13,7 @@ from .notification_manager import NotificationManager
 from .utils import (
     load_coefficients,
     compute_rel_margin_trbl,
-    compute_rel_gap_hv,
+    compute_rel_gap,
     create_preprocessor,
     compute_rel_margin_trbl,
 )
@@ -378,16 +378,16 @@ def scan(args, config, config_with_defaults):
     preprocess = create_preprocessor(config_with_defaults["camera"])
     notify = create_notifier(config_with_defaults["notify"])
 
-    block_shape = tuple(config_with_defaults["dimensions"]["tile"][::-1])
-    grid_shape = tuple(config_with_defaults["dimensions"]["grid"][::-1])
+    block_shape = tuple(config_with_defaults["dimensions"]["tile"])
+    grid_shape = tuple(config_with_defaults["dimensions"]["grid"])
 
-    abs_frame_size = tuple(config_with_defaults["dimensions"]["size"][::-1])
+    abs_frame_size = tuple(config_with_defaults["dimensions"]["size"])
     abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
-    abs_gap = tuple(config_with_defaults["dimensions"]["gap"][::-1])
+    abs_gap = tuple(config_with_defaults["dimensions"]["gap"])
     roi_aspect_ratio = compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl)
     print(roi_aspect_ratio)
 
-    rel_gap = compute_rel_gap_hv(abs_frame_size, abs_margin_trbl, abs_gap)
+    rel_gap = compute_rel_gap(abs_frame_size, abs_margin_trbl, abs_gap)
 
     rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
     mirror_tags = bool(config_with_defaults["camera"]["flipH"]) != bool(

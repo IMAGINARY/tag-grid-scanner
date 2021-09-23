@@ -45,7 +45,31 @@ def get_config(path):
 
         config_with_defaults = deepcopy(config)
         config_validator_with_defaults.validate(config_with_defaults)
-        return (config, config_with_defaults)
+        return (
+            preprocess_config(config, path),
+            preprocess_config(config_with_defaults, path),
+        )
+
+
+def preprocess_config(config, config_path):
+    config = deepcopy(config)
+
+    if "size" in config["camera"]:
+        config["camera"]["size"] = config["camera"]["size"][::-1]
+
+    if "calibration" in config["camera"]:
+        config_dir = pathlib.Path(config_path).parent.resolve()
+        calibration_path = pathlib.Path(
+            config_dir, config["camera"]["calibration"]
+        ).resolve()
+        config["camera"]["calibration"] = str(calibration_path)
+
+    config["dimensions"]["tile"] = config["dimensions"]["tile"][::-1]
+    config["dimensions"]["grid"] = config["dimensions"]["grid"][::-1]
+    config["dimensions"]["size"] = config["dimensions"]["size"][::-1]
+    config["dimensions"]["gap"] = config["dimensions"]["gap"][::-1]
+
+    return config
 
 
 config_schema = get_config_schema()

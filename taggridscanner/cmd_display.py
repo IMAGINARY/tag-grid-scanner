@@ -5,7 +5,7 @@ import random
 
 from .tag_detector import string_tag_to_np_tag
 from .utils import (
-    compute_rel_gap_hv,
+    compute_rel_gap,
     compute_rel_margin_trbl,
     create_linear_transformer,
     create_inverse_linear_transformer,
@@ -90,7 +90,7 @@ def draw_frame(
 
     rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
 
-    rel_gap = compute_rel_gap_hv(abs_frame_size, abs_margin_trbl, abs_gap)
+    rel_gap = compute_rel_gap(abs_frame_size, abs_margin_trbl, abs_gap)
 
     draw_roi(
         frame_img,
@@ -139,17 +139,17 @@ def create_img(
 
 
 def display(args, config, config_with_defaults):
-    img_size = tuple(config_with_defaults["camera"]["size"][::-1])
+    img_size = tuple(config_with_defaults["camera"]["size"])
     rotate = config_with_defaults["camera"]["rotate"]
     flip_h = config_with_defaults["camera"]["flipH"]
     flip_v = config_with_defaults["camera"]["flipV"]
 
-    tag_shape = tuple(config_with_defaults["dimensions"]["tile"][::-1])
-    grid_shape = tuple(config_with_defaults["dimensions"]["grid"][::-1])
+    tag_shape = tuple(config_with_defaults["dimensions"]["tile"])
+    grid_shape = tuple(config_with_defaults["dimensions"]["grid"])
 
-    abs_frame_size = tuple(config_with_defaults["dimensions"]["size"][::-1])
+    abs_frame_size = tuple(config_with_defaults["dimensions"]["size"])
     abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
-    abs_gap = tuple(config_with_defaults["dimensions"]["gap"][::-1])
+    abs_gap = tuple(config_with_defaults["dimensions"]["gap"])
 
     np_tags = [
         string_tag_to_np_tag(t, tag_shape) for t in config["tags"] if t != "unknown"
