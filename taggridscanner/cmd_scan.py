@@ -19,15 +19,20 @@ from .utils import (
 )
 from .http_json_poster import HttpJsonPoster
 from .frame import detect_frame_corners
-from .roi import compute_roi_shape, compute_roi_matrix, compute_roi_points
+from .roi import (
+    compute_roi_shape,
+    compute_roi_matrix,
+    compute_roi_points,
+    compute_roi_aspect_ratio,
+)
 from .tag_detector import TagDetector, tiles_to_image
 
 
-def compute_roi(undistorted_img_gray, rel_margin_trbl, aspect_ratio):
+def compute_roi(undistorted_img_gray, rel_margin_trbl, roi_aspect_ratio):
     frame = detect_frame_corners(undistorted_img_gray)
 
     if frame is not None:
-        roi_shape = compute_roi_shape(rel_margin_trbl, frame.corners, aspect_ratio)
+        roi_shape = compute_roi_shape(rel_margin_trbl, frame.corners, roi_aspect_ratio)
         roi_matrix = compute_roi_matrix(rel_margin_trbl, frame.corners, roi_shape)
 
         Roi = namedtuple("Roi", ["shape", "matrix", "corners", "frame"])
@@ -255,6 +260,7 @@ def capture_and_detect(
     capture,
     preprocess,
     rel_margin_trbl,
+    roi_aspect_ratio,
     tag_detector,
     notify,
 ):
@@ -263,15 +269,14 @@ def capture_and_detect(
     roi = None
     img_to_renew_roi = None
     img_to_renew_roi_cond = threading.Condition()
-    aspect_ratio = (tag_detector.grid_shape[0] * tag_detector.tag_shape[0]) / (
-        tag_detector.grid_shape[1] * tag_detector.tag_shape[1]
-    )
 
     def renew_roi():
         nonlocal img_to_renew_roi
         while True:
             if img_to_renew_roi is not None:
-                new_roi = compute_roi(img_to_renew_roi, rel_margin_trbl, aspect_ratio)
+                new_roi = compute_roi(
+                    img_to_renew_roi, rel_margin_trbl, roi_aspect_ratio
+                )
                 if new_roi is not None:
                     nonlocal roi
                     roi = new_roi
@@ -379,6 +384,8 @@ def scan(args, config, config_with_defaults):
     abs_frame_size = tuple(config_with_defaults["dimensions"]["size"][::-1])
     abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
     abs_gap = tuple(config_with_defaults["dimensions"]["gap"][::-1])
+    roi_aspect_ratio = compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl)
+    print(roi_aspect_ratio)
 
     rel_gap = compute_rel_gap_hv(abs_frame_size, abs_margin_trbl, abs_gap)
 
@@ -394,4 +401,6 @@ def scan(args, config, config_with_defaults):
         mirror_tags,
     )
 
-    capture_and_detect(capture, preprocess, rel_margin_trbl, tag_detector, notify)
+    capture_and_detect(
+        capture, preprocess, rel_margin_trbl, roi_aspect_ratio, tag_detector, notify
+    )

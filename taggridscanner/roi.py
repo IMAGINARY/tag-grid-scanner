@@ -22,7 +22,15 @@ def create_unit_frame_corners():
     return create_frame_corners((1, 1))
 
 
-def compute_roi_shape(rel_margins_trbl, frame_corners, aspect_ratio):
+def compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl):
+    abs_roi_size = (
+        abs_frame_size[0] - (abs_margin_trbl[0] + abs_margin_trbl[2]),
+        abs_frame_size[1] - (abs_margin_trbl[1] + abs_margin_trbl[3]),
+    )
+    return abs_roi_size[1] / abs_roi_size[0]
+
+
+def compute_roi_shape(rel_margins_trbl, frame_corners, roi_aspect_ratio):
     roi_to_frame_ratio = (
         1 - (rel_margins_trbl[0] + rel_margins_trbl[2]),
         1 - (rel_margins_trbl[1] + rel_margins_trbl[3]),
@@ -32,18 +40,18 @@ def compute_roi_shape(rel_margins_trbl, frame_corners, aspect_ratio):
 
     dist_v_left = distance(p[3], p[0])
     dist_v_right = distance(p[1], p[2])
-    dist_v = max(dist_v_left, dist_v_right)
+    dist_v = roi_to_frame_ratio[0] * max(dist_v_left, dist_v_right)
 
     dist_h_top = distance(p[0], p[1])
     dist_h_bottom = distance(p[2], p[3])
-    dist_h = max(dist_h_top, dist_h_bottom)
+    dist_h = roi_to_frame_ratio[1] * max(dist_h_top, dist_h_bottom)
 
-    if dist_v * aspect_ratio > dist_h:
-        h = math.ceil(roi_to_frame_ratio[0] * dist_v)
-        w = math.ceil(roi_to_frame_ratio[1] * dist_v / aspect_ratio)
+    if dist_v * roi_aspect_ratio * dist_v > dist_h * dist_h / roi_aspect_ratio:
+        h = math.ceil(dist_v)
+        w = math.ceil(dist_v * roi_aspect_ratio)
     else:
-        h = math.ceil(roi_to_frame_ratio[0] * dist_h * aspect_ratio)
-        w = math.ceil(roi_to_frame_ratio[1] * dist_h)
+        h = math.ceil(dist_h / roi_aspect_ratio)
+        w = math.ceil(dist_h)
 
     return h, w
 
