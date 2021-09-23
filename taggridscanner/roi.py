@@ -40,9 +40,9 @@ def compute_roi_shape(rel_margins_trbl, frame_corners, aspect_ratio):
 
     if dist_v * aspect_ratio > dist_h:
         h = math.ceil(roi_to_frame_ratio[0] * dist_v)
-        w = math.ceil(roi_to_frame_ratio[1] * dist_v * aspect_ratio)
+        w = math.ceil(roi_to_frame_ratio[1] * dist_v / aspect_ratio)
     else:
-        h = math.ceil(roi_to_frame_ratio[0] * dist_h / aspect_ratio)
+        h = math.ceil(roi_to_frame_ratio[0] * dist_h * aspect_ratio)
         w = math.ceil(roi_to_frame_ratio[1] * dist_h)
 
     return h, w
