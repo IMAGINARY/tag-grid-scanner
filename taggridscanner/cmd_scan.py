@@ -1,4 +1,5 @@
 import json
+import math
 import sys
 import jsonpointer
 import threading
@@ -14,6 +15,7 @@ from .utils import (
     compute_rel_margin_trbl,
     compute_rel_gap_hv,
     create_preprocessor,
+    compute_rel_margin_trbl,
 )
 from .http_json_poster import HttpJsonPoster
 from .frame import detect_frame_corners
@@ -60,40 +62,72 @@ def draw_frame_and_roi(undistorted_img, roi):
     cv2.polylines(undistorted_img, roi_corners, True, (0, 255, 255), 1)
 
 
-def draw_grid(img, grid_shape, tile_shape):
-    rows = grid_shape[0] * tile_shape[0]
-    cols = grid_shape[1] * tile_shape[1]
-    for x in range(1, cols):
+def draw_grid(img, grid_shape, tag_shape, rel_gap=(0.0, 0.0)):
+    padded_img_shape = (
+        img.shape[0] * (1 + rel_gap[0]),
+        img.shape[1] * (1 + rel_gap[1]),
+    )
+    tile_size_with_gap = (
+        padded_img_shape[0] / grid_shape[0],
+        padded_img_shape[1] / grid_shape[1],
+    )
+    gap_size = (img.shape[0] * rel_gap[0], img.shape[1] * rel_gap[1])
+    tile_size = (
+        tile_size_with_gap[0] - gap_size[0],
+        tile_size_with_gap[1] - gap_size[1],
+    )
+
+    for y_grid in range(0, grid_shape[0]):
+        row_start = math.floor(tile_size_with_gap[0] * y_grid)
+        row_end = math.ceil(row_start + tile_size[0])
+        row = img[row_start:row_end, :]
+        for y_tile in range(1, tag_shape[0]):
+            y = int((y_tile * row.shape[0]) / tag_shape[0])
+            cv2.line(
+                row,
+                (0, y),
+                (row.shape[1], y),
+                (255, 128, 128),
+                thickness=1,
+            )
+
+    for x_grid in range(0, grid_shape[1]):
+        col_start = math.floor(tile_size_with_gap[1] * x_grid)
+        col_end = math.ceil(col_start + tile_size[1])
+        col = img[:, col_start:col_end]
+        for x_tile in range(1, tag_shape[1]):
+            x = int((x_tile * col.shape[1]) / tag_shape[1])
+            cv2.line(
+                col,
+                (x, 0),
+                (x, col.shape[0]),
+                (255, 128, 128),
+                thickness=1,
+            )
+
+    h_line_width = max(1, int(rel_gap[1] * img.shape[1]))
+    for y in range(1, grid_shape[1]):
         cv2.line(
             img,
-            (int((x * img.shape[1]) / cols), 0),
-            (int((x * img.shape[1]) / cols), img.shape[0]),
-            (255, 128, 128),
-            thickness=1,
-        )
-    for y in range(1, rows):
-        cv2.line(
-            img,
-            (0, int((y * img.shape[0]) / rows)),
-            (img.shape[1], int((y * img.shape[0]) / rows)),
-            (255, 128, 128),
-            thickness=1,
-        )
-    for x in range(1, grid_shape[1]):
-        cv2.line(
-            img,
-            (int((x * img.shape[1]) / grid_shape[1]), 0),
-            (int((x * img.shape[1]) / grid_shape[1]), img.shape[0]),
+            (int((y * padded_img_shape[1]) / grid_shape[1] - h_line_width / 2.0), 0),
+            (
+                int((y * padded_img_shape[1]) / grid_shape[1] - h_line_width / 2),
+                img.shape[1],
+            ),
             (0, 0, 255),
-            thickness=1,
+            thickness=h_line_width,
         )
-    for y in range(1, grid_shape[0]):
+    v_line_width = max(1, int(rel_gap[0] * img.shape[0]))
+    for x in range(1, grid_shape[0]):
         cv2.line(
             img,
-            (0, int((y * img.shape[0]) / grid_shape[0])),
-            (img.shape[1], int((y * img.shape[0]) / grid_shape[0])),
+            (0, int((x * padded_img_shape[0]) / grid_shape[0] - v_line_width / 2.0)),
+            (
+                img.shape[1],
+                int((x * padded_img_shape[0]) / grid_shape[0] - v_line_width / 2.0),
+            ),
             (0, 0, 255),
-            thickness=1,
+            thickness=v_line_width,
         )
 
 
@@ -109,7 +143,12 @@ def visualize(preprocessed, roi, roi_image, roi_image_threshold, tiles, tag_dete
 
     if roi_image is not None:
         roi_image_bgr = cv2.cvtColor(roi_image, cv2.COLOR_GRAY2BGR)
-        draw_grid(roi_image_bgr, tag_detector.grid_shape, tag_detector.tag_shape)
+        draw_grid(
+            roi_image_bgr,
+            tag_detector.grid_shape,
+            tag_detector.tag_shape,
+            tag_detector.rel_gaps,
+        )
         cv2.imshow("region of interest", roi_image_bgr)
     else:
         cv2.destroyWindow("region of interest")
@@ -117,7 +156,10 @@ def visualize(preprocessed, roi, roi_image, roi_image_threshold, tiles, tag_dete
     if roi_image_threshold is not None:
         roi_image_threshold_bgr = cv2.cvtColor(roi_image_threshold, cv2.COLOR_GRAY2BGR)
         draw_grid(
-            roi_image_threshold_bgr, tag_detector.grid_shape, tag_detector.tag_shape
+            roi_image_threshold_bgr,
+            tag_detector.grid_shape,
+            tag_detector.tag_shape,
+            tag_detector.rel_gaps,
         )
         cv2.imshow("region of interest (threshold)", roi_image_threshold_bgr)
     else:
@@ -331,15 +373,14 @@ def scan(args, config, config_with_defaults):
     preprocess = create_preprocessor(config_with_defaults["camera"])
     notify = create_notifier(config_with_defaults["notify"])
 
-    block_shape = tuple(config_with_defaults["dimensions"]["tile"])
-    grid_shape = tuple(config_with_defaults["dimensions"]["grid"])
+    block_shape = tuple(config_with_defaults["dimensions"]["tile"][::-1])
+    grid_shape = tuple(config_with_defaults["dimensions"]["grid"][::-1])
 
-    abs_frame_size = tuple(config_with_defaults["dimensions"]["size"])
+    abs_frame_size = tuple(config_with_defaults["dimensions"]["size"][::-1])
     abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
-    abs_gap_hv = tuple(config_with_defaults["dimensions"]["gap"])
+    abs_gap = tuple(config_with_defaults["dimensions"]["gap"][::-1])
 
-    rel_gap_hv = compute_rel_gap_hv(abs_frame_size, abs_margin_trbl, abs_gap_hv)
-    rel_gap_vh = rel_gap_hv[::-1]
+    rel_gap = compute_rel_gap_hv(abs_frame_size, abs_margin_trbl, abs_gap)
 
     rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
     mirror_tags = bool(config_with_defaults["camera"]["flipH"]) != bool(
@@ -348,7 +389,7 @@ def scan(args, config, config_with_defaults):
     tag_detector = TagDetector(
         grid_shape,
         block_shape,
-        rel_gap_vh,
+        rel_gap,
         config_with_defaults["tags"],
         mirror_tags,
     )
