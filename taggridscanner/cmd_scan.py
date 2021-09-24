@@ -358,7 +358,6 @@ def scan(args, config, config_with_defaults):
     abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
     abs_gap = tuple(config_with_defaults["dimensions"]["gap"])
     roi_aspect_ratio = compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl)
-    print(roi_aspect_ratio)
 
     rel_gap = compute_rel_gap(abs_frame_size, abs_margin_trbl, abs_gap)
 
