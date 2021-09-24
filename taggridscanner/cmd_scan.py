@@ -339,6 +339,7 @@ def capture_and_detect(
                     if detected_tags is not None:
                         if not np.array_equal(last_detected_tags, detected_tags):
                             notify(detected_tags.tolist())
+                            last_detected_tags = detected_tags
 
                 visualize(
                     undistorted_gray,
