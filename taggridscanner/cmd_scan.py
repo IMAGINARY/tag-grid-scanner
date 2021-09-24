@@ -313,7 +313,9 @@ def capture_and_detect(
                 renew_roi_ts = ts
                 if capture.get(cv2.CAP_PROP_POS_FRAMES) == first_frame_index + 1.0:
                     # first frame: compute immediately in same thread
-                    roi = compute_roi(undistorted_gray, rel_margin_trbl, aspect_ratio)
+                    roi = compute_roi(
+                        undistorted_gray, rel_margin_trbl, roi_aspect_ratio
+                    )
                 else:
                     # other frames: compute in background thread
                     with img_to_renew_roi_cond:
