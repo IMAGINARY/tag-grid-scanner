@@ -17,6 +17,7 @@ from .utils import (
     create_preprocessor,
     compute_rel_margin_trbl,
     setup_video_capture,
+    create_scan_result_transformer,
 )
 from .http_json_poster import HttpJsonPoster
 from .frame import detect_frame_corners
@@ -217,7 +218,10 @@ def create_notifier(notify_config):
     template = notify_config["template"]
     assign_to = notify_config["assignTo"]
 
+    scan_result_transformer = create_scan_result_transformer(notify_config)
+
     def notify(new_tags):
+        new_tags = scan_result_transformer(new_tags)
         notification_obj = jsonpointer.set_pointer(template, assign_to, new_tags, False)
         notification = json.dumps(notification_obj)
         notification_manager.notify(notification)

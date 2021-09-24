@@ -40,6 +40,9 @@ type: object
     maxItems: 4
     items:
       "$ref": "#/$defs/nonnegnumber"
+  rotation:
+    type: integer
+    enum: [ 0, 90, 180, 270 ]
 properties:
   camera:
     type: object
@@ -56,8 +59,7 @@ properties:
       filename:
         type: string
       rotate:
-        type: integer
-        enum: [ 0, 90, 180, 270 ]
+        "$ref": "#/$defs/rotation"
         default: 0
       flipV:
         type: boolean
@@ -107,6 +109,15 @@ properties:
         type: string
         format: json-pointer
         default: ""
+      rotate:
+        "$ref": "#/$defs/rotation"
+        default: 0
+      flipV:
+        type: boolean
+        default: false
+      flipH:
+        type: boolean
+        default: false
       stdout:
         type: boolean
         default: true
