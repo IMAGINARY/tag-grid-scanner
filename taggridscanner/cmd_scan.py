@@ -119,7 +119,7 @@ def draw_grid(img, grid_shape, tag_shape, rel_gap=(0.0, 0.0)):
             (int((y * padded_img_shape[1]) / grid_shape[1] - h_line_width / 2.0), 0),
             (
                 int((y * padded_img_shape[1]) / grid_shape[1] - h_line_width / 2),
-                img.shape[1],
+                img.shape[0],
             ),
             (0, 0, 255),
             thickness=h_line_width,
