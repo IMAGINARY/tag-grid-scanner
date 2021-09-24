@@ -88,6 +88,9 @@ properties:
       gap:
         "$ref": "#/$defs/nonnegvec2"
         default: [ 0, 0 ]
+      crop:
+        "$ref": "#/$defs/nonnegvec2"
+        default: [ 0.8, 0.8 ]
     required: [ grid, tile ]
     default: { }
   tags:

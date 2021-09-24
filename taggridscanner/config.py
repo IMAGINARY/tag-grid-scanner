@@ -74,6 +74,9 @@ def preprocess_config(config, config_path):
     config["dimensions"]["size"] = config["dimensions"]["size"][::-1]
     config["dimensions"]["gap"] = config["dimensions"]["gap"][::-1]
 
+    if "crop" in config["dimensions"]:
+        config["dimensions"]["crop"] = config["dimensions"]["crop"][::-1]
+
     return config
 
 

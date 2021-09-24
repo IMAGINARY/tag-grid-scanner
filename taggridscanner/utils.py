@@ -168,3 +168,40 @@ def setup_video_capture(camera_config):
         capture.set(cv2.CAP_PROP_EXPOSURE, exposure)
 
     return capture
+
+
+def remove_gaps(img, grid_shape, rel_gap):
+    gap_size = (img.shape[0] * rel_gap[0], img.shape[1] * rel_gap[1])
+    padded_img_size = (
+        img.shape[0] + gap_size[0],
+        img.shape[1] + gap_size[1],
+    )
+    tile_size_with_gap = (
+        padded_img_size[0] / grid_shape[0],
+        padded_img_size[1] / grid_shape[1],
+    )
+    tile_size = (
+        tile_size_with_gap[0] - gap_size[0],
+        tile_size_with_gap[1] - gap_size[1],
+    )
+    is_in_tile = (
+        np.arange(0, img.shape[0]) % tile_size_with_gap[0] < tile_size[0],
+        np.arange(0, img.shape[1]) % tile_size_with_gap[1] < tile_size[1],
+    )
+    return img[is_in_tile[0], :][:, is_in_tile[1]]
+
+
+def crop_tile_pixels(img, tag_shape, crop_factors):
+    tile_size = (
+        img.shape[0] / tag_shape[0],
+        img.shape[1] / tag_shape[0],
+    )
+
+    is_not_cropped = (
+        abs((np.arange(0, img.shape[0]) % tile_size[0]) / tile_size[0] - 0.5)
+        <= crop_factors[0] / 2.0,
+        abs((np.arange(0, img.shape[1]) % tile_size[1]) / tile_size[1] - 0.5)
+        <= crop_factors[0] / 2.0,
+    )
+
+    return img[is_not_cropped[0], :][:, is_not_cropped[1]]

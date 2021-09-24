@@ -3,6 +3,9 @@ import math
 import numpy as np
 
 
+from .utils import remove_gaps, crop_tile_pixels
+
+
 def tiles_to_image(tiles, max_value=255, scale_factor=1):
     img = np.zeros(
         (tiles.shape[0] * tiles.shape[2], tiles.shape[1] * tiles.shape[3]),
@@ -30,12 +33,12 @@ def tiles_to_image(tiles, max_value=255, scale_factor=1):
 
 
 class TagDetector:
-    def __init__(self, grid_shape, tag_shape, rel_gaps, tags, mirror=False):
+    def __init__(self, grid_shape, tag_shape, rel_gaps, tags, crop_factors=(1.0, 1.0)):
         self.grid_shape = grid_shape
         self.rel_gaps = rel_gaps
-        self.mirror = mirror
         self.__tag_shape = tag_shape
         self.__tags = tags
+        self.crop_factors = crop_factors
         self.__tag_dict, self.__data_for_unknown_tag = self.create_int_tag_dict(tags)
 
     @property
@@ -91,8 +94,6 @@ class TagDetector:
                 data_for_unknown_tag = data
             else:
                 np_tag = string_tag_to_np_tag(string_tag, self.tag_shape)
-                if self.mirror:
-                    np_tag = np.fliplr(np_tag)
                 tag_dict[np_tag_to_int(np_tag, self.tag_shape)] = data
                 np_tag = np.rot90(np_tag)
                 tag_dict[np_tag_to_int(np_tag, self.tag_shape)] = data
@@ -109,7 +110,7 @@ class TagDetector:
         tile_height = tile_height_with_gap - gap_height
         y_start = min(math.floor(grid_y * tile_height_with_gap), img.shape[0] - 1)
         y_end = min(
-            math.floor(grid_y * tile_height_with_gap + tile_height), img.shape[0] - 1
+            math.ceil(grid_y * tile_height_with_gap + tile_height), img.shape[0] - 1
         )
 
         gap_width = img.shape[1] * self.rel_gaps[1]
@@ -118,7 +119,7 @@ class TagDetector:
         tile_width = tile_width_with_gap - gap_width
         x_start = min(math.floor(grid_x * tile_width_with_gap), img.shape[1] - 1)
         x_end = min(
-            math.floor(grid_x * tile_width_with_gap + tile_width), img.shape[1] - 1
+            math.ceil(grid_x * tile_width_with_gap + tile_width), img.shape[1] - 1
         )
 
         window = img[y_start:y_end, x_start:x_end]
@@ -126,6 +127,10 @@ class TagDetector:
         return window
 
     def reduce_tile(self, tile_img_gray):
+        tile_img_gray = crop_tile_pixels(
+            tile_img_gray, self.tag_shape, self.crop_factors
+        )
+
         tile_small = cv2.resize(
             tile_img_gray,
             self.tag_shape,

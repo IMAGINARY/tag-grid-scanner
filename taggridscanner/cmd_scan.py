@@ -380,20 +380,14 @@ def scan(args, config, config_with_defaults):
     abs_frame_size = tuple(config_with_defaults["dimensions"]["size"])
     abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
     abs_gap = tuple(config_with_defaults["dimensions"]["gap"])
+    crop_factors = tuple(config_with_defaults["dimensions"]["crop"])
     roi_aspect_ratio = compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl)
 
     rel_gap = compute_rel_gap(abs_frame_size, abs_margin_trbl, abs_gap)
 
     rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
-    mirror_tags = bool(config_with_defaults["camera"]["flipH"]) != bool(
-        config_with_defaults["camera"]["flipV"]
-    )
     tag_detector = TagDetector(
-        grid_shape,
-        block_shape,
-        rel_gap,
-        config_with_defaults["tags"],
-        mirror_tags,
+        grid_shape, block_shape, rel_gap, config_with_defaults["tags"], crop_factors
     )
 
     capture_and_detect(
