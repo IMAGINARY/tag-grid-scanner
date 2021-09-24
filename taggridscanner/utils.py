@@ -199,9 +199,9 @@ def crop_tile_pixels(img, tag_shape, crop_factors):
 
     is_not_cropped = (
         abs((np.arange(0, img.shape[0]) % tile_size[0]) / tile_size[0] - 0.5)
-        <= crop_factors[0] / 2.0,
+        <= crop_factors[0],
         abs((np.arange(0, img.shape[1]) % tile_size[1]) / tile_size[1] - 0.5)
-        <= crop_factors[0] / 2.0,
+        <= crop_factors[0],
     )
 
     return img[is_not_cropped[0], :][:, is_not_cropped[1]]
