@@ -183,8 +183,21 @@ def visualize(preprocessed, roi, roi_image, roi_image_threshold, tiles, tag_dete
 
 def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
     roi_img = extract_roi(undistorted_img_gray, roi.matrix, roi.shape)
+    thresholding_block_size = max(
+        3,
+        int(
+            (roi_img.shape[0] + roi_img.shape[1])
+            / (tag_detector.grid_shape[0] + tag_detector.grid_shape[1])
+        ),
+    )
+    thresholding_block_size += 1 - thresholding_block_size % 2  # must be odd
     roi_img_threshold = cv2.adaptiveThreshold(
-        roi_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 101, 10
+        roi_img,
+        255,
+        cv2.ADAPTIVE_THRESH_MEAN_C,
+        cv2.THRESH_BINARY,
+        thresholding_block_size,
+        10,
     )
 
     tiles = tag_detector.extract_tiles(roi_img_threshold)
