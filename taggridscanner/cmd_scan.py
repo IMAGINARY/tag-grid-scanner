@@ -281,11 +281,18 @@ def capture_and_detect(
     start_ts = time.perf_counter()
 
     wait_for_key = True
-    while capture.get(cv2.CAP_PROP_FRAME_COUNT) == 0.0 or capture.get(
-        cv2.CAP_PROP_POS_FRAMES
-    ) < capture.get(cv2.CAP_PROP_FRAME_COUNT):
+    while True:
         frame_start_ts = time.perf_counter()
+
         ret, src = capture.read()
+
+        if not ret:
+            # reach end of stream -> rewind
+            # (can also happen when there is an input error due,
+            # but there is no way in OpenCV to tell the difference)
+            # maybe switch to PyAV for capturing
+            capture.set(cv2.CAP_PROP_POS_MSEC, 0.0)
+            continue
 
         src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
 
