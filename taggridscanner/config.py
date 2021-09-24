@@ -64,7 +64,7 @@ def preprocess_config(config, config_path):
         ).resolve()
         config["camera"]["calibration"] = str(calibration_path)
 
-    if "filemame" in config["camera"]:
+    if "filename" in config["camera"]:
         config_dir = pathlib.Path(config_path).parent.resolve()
         filename_path = pathlib.Path(config_dir, config["camera"]["filename"]).resolve()
         config["camera"]["filename"] = str(filename_path)
