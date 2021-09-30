@@ -282,82 +282,85 @@ def capture_and_detect(
 
     wait_for_key = True
     while True:
-        frame_start_ts = time.perf_counter()
+        try:
+            frame_start_ts = time.perf_counter()
 
-        ret, src = capture.read()
+            ret, src = capture.read()
 
-        if not ret:
-            # reach end of stream -> rewind
-            # (can also happen when there is an input error due,
-            # but there is no way in OpenCV to tell the difference)
-            # maybe switch to PyAV for capturing
-            capture.set(cv2.CAP_PROP_POS_MSEC, 0.0)
-            continue
+            if not ret:
+                # reach end of stream -> rewind
+                # (can also happen when there is an input error due,
+                # but there is no way in OpenCV to tell the difference)
+                # maybe switch to PyAV for capturing
+                capture.set(cv2.CAP_PROP_POS_MSEC, 0.0)
+                continue
 
-        src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+            src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
 
-        if last_src_gray is not None:
+            if last_src_gray is not None:
+t
+                def absdiff(img1, img2):
+                    a = img1 - img2
+                    b = np.uint8(img1 < img2) * 254 + 1
+                    a *= b
+                    return a
 
-            def absdiff(img1, img2):
-                a = img1 - img2
-                b = np.uint8(img1 < img2) * 254 + 1
-                a *= b
-                return a
-
-            diff = absdiff(last_src_gray, src_gray)
-            ret, thres = cv2.threshold(
-                diff, None, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
-            )
-            # cv2.imshow("diff", thres)
-            src_has_changed = True  # ret > 10.0
-            src_for_roi_has_changed = src_has_changed
-        last_src_gray = src_gray
-
-        if src_for_roi_has_changed:
-            undistorted_gray = preprocess(src_gray)
-            ts = time.perf_counter()
-            if ts > renew_roi_ts + renew_roi_interval and start_ts + 5.0 >= ts:
-                renew_roi_ts = ts
-                if capture.get(cv2.CAP_PROP_POS_FRAMES) == first_frame_index + 1.0:
-                    # first frame: compute immediately in same thread
-                    roi = compute_roi(
-                        undistorted_gray, rel_margin_trbl, roi_aspect_ratio
-                    )
-                else:
-                    # other frames: compute in background thread
-                    with img_to_renew_roi_cond:
-                        img_to_renew_roi = undistorted_gray
-                        img_to_renew_roi_cond.notifyAll()
-
-            if src_has_changed:
-                intermediates = None
-                if roi is not None:
-                    detected_tags, intermediates = extract_roi_and_detect_tags(
-                        undistorted_gray, roi, tag_detector
-                    )
-
-                    if detected_tags is not None:
-                        if not np.array_equal(last_detected_tags, detected_tags):
-                            notify(detected_tags.tolist())
-                            last_detected_tags = detected_tags
-
-                visualize(
-                    undistorted_gray,
-                    roi,
-                    intermediates.roi_image if intermediates is not None else None,
-                    intermediates.roi_image_threshold
-                    if intermediates is not None
-                    else None,
-                    intermediates.tiles if intermediates is not None else None,
-                    tag_detector,
+                diff = absdiff(last_src_gray, src_gray)
+                ret, thres = cv2.threshold(
+                    diff, None, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU
                 )
-        frame_end_ts = time.perf_counter()
-        key = cv2.waitKey(
-            max(1, int(1000 / 15) - int(1000 * (frame_end_ts - frame_start_ts)))
-        )
-        if key == 27:
-            wait_for_key = False
-            break
+                # cv2.imshow("diff", thres)
+                src_has_changed = True  # ret > 10.0
+                src_for_roi_has_changed = src_has_changed
+            last_src_gray = src_gray
+
+            if src_for_roi_has_changed:
+                undistorted_gray = preprocess(src_gray)
+                ts = time.perf_counter()
+                if ts > renew_roi_ts + renew_roi_interval and start_ts + 5.0 >= ts:
+                    renew_roi_ts = ts
+                    if capture.get(cv2.CAP_PROP_POS_FRAMES) == first_frame_index + 1.0:
+                        # first frame: compute immediately in same thread
+                        roi = compute_roi(
+                            undistorted_gray, rel_margin_trbl, roi_aspect_ratio
+                        )
+                    else:
+                        # other frames: compute in background thread
+                        with img_to_renew_roi_cond:
+                            img_to_renew_roi = undistorted_gray
+                            img_to_renew_roi_cond.notifyAll()
+
+                if src_has_changed:
+                    intermediates = None
+                    if roi is not None:
+                        detected_tags, intermediates = extract_roi_and_detect_tags(
+                            undistorted_gray, roi, tag_detector
+                        )
+
+                        if detected_tags is not None:
+                            if not np.array_equal(last_detected_tags, detected_tags):
+                                notify(detected_tags.tolist())
+                                last_detected_tags = detected_tags
+
+                    visualize(
+                        undistorted_gray,
+                        roi,
+                        intermediates.roi_image if intermediates is not None else None,
+                        intermediates.roi_image_threshold
+                        if intermediates is not None
+                        else None,
+                        intermediates.tiles if intermediates is not None else None,
+                        tag_detector,
+                    )
+            frame_end_ts = time.perf_counter()
+            key = cv2.waitKey(
+                max(1, int(1000 / 15) - int(1000 * (frame_end_ts - frame_start_ts)))
+            )
+            if key == 27:
+                wait_for_key = False
+                break
+        except AssertionError as ae:
+            print(ae, file=sys.stderr)
 
     if wait_for_key:
         while True:
