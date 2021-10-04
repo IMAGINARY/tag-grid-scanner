@@ -4,6 +4,7 @@ from .cmd_scan import scan
 from .cmd_display import display
 from .cmd_calibrate import calibrate
 from .cmd_snapshot import snapshot
+from .cmd_roi import roi
 
 
 def main():
@@ -15,6 +16,7 @@ def main():
         "display": display,
         "calibrate": calibrate,
         "snapshot": snapshot,
+        "roi": roi,
     }
 
     assert args["COMMAND"] in commands

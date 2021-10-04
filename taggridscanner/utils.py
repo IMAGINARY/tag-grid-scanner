@@ -99,23 +99,29 @@ def create_inverse_linear_transformer(rotate, flip_h, flip_v):
     return inverse_linear_transformer
 
 
-def create_preprocessor(camera_config):
+def create_distortion_corrector(camera_config):
     camera_matrix, distortion_coefficients = (
         load_coefficients(camera_config["calibration"])
         if "calibration" in camera_config
         else (None, None)
     )
 
+    if camera_matrix is not None and distortion_coefficients is not None:
+        return lambda img: cv2.undistort(
+            img, camera_matrix, distortion_coefficients, None, None
+        )
+    else:
+        return lambda img: img
+
+
+def create_preprocessor(camera_config):
+    correct_distortion = create_distortion_corrector(camera_config)
+
     linear_transform = create_linear_transformer(
         camera_config["rotate"], camera_config["flipH"], camera_config["flipV"]
     )
 
-    def preprocess(img):
-        if camera_matrix is not None and distortion_coefficients is not None:
-            img = cv2.undistort(img, camera_matrix, distortion_coefficients, None, None)
-        return linear_transform(img)
-
-    return preprocess
+    return lambda img: linear_transform(correct_distortion(img))
 
 
 def create_scan_result_transformer_internal(rotate, flip_h, flip_v):
