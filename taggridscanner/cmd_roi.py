@@ -10,10 +10,23 @@ from .utils import (
 )
 
 
-def draw_roi(img, points, active_vertex=0):
+def to_surrounding_quad(points):
     points = np.int32(points)
-    cv2.polylines(img, [points], isClosed=True, color=(0, 255, 0), thickness=1)
-    cv2.circle(img, points[active_vertex], radius=10, color=(0, 0, 255), thickness=2)
+    points[0][0] -= 1
+    points[0][1] -= 1
+    points[1][1] -= 1
+    points[3][0] -= 1
+    return points
+
+
+def draw_roi(img, points, active_vertex=0):
+    quad_points = to_surrounding_quad(points)
+    cv2.polylines(img, [quad_points], isClosed=True, color=(0, 255, 0), thickness=1)
+    for p in quad_points:
+        cv2.circle(img, p, radius=10, color=(0, 255, 0), thickness=2)
+    cv2.circle(
+        img, quad_points[active_vertex], radius=10, color=(0, 0, 255), thickness=2
+    )
 
 
 def label(img, text, pos, left, top):
@@ -39,10 +52,11 @@ def label(img, text, pos, left, top):
 
 
 def label_roi(img, points):
-    label(img, " 0: {}".format(points[0]), points[0], True, True)
-    label(img, "1: {} ".format(points[1]), points[1], False, True)
-    label(img, "2: {} ".format(points[2]), points[2], False, False)
-    label(img, " 3: {}".format(points[3]), points[3], True, False)
+    quad_points = to_surrounding_quad(points)
+    label(img, " 0: {}".format(points[0]), quad_points[0], True, True)
+    label(img, "1: {} ".format(points[1]), quad_points[1], False, True)
+    label(img, "2: {} ".format(points[2]), quad_points[2], False, False)
+    label(img, " 3: {}".format(points[3]), quad_points[3], True, False)
 
 
 def clamp_points(points, img_shape):
