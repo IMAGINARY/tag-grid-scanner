@@ -49,6 +49,14 @@ def clamp_points(points, img_shape):
         points[idx][1] = max(0, min(points[idx][1], img_shape[0]))
 
 
+def abs_to_rel(points, img_shape):
+    points = np.copy(points)
+    for idx in range(0, 4):
+        points[idx][0] = points[idx][0] / img_shape[1]
+        points[idx][1] = points[idx][1] / img_shape[0]
+    return points
+
+
 def roi(args, config, config_with_defaults):
     capture = setup_video_capture(config_with_defaults["camera"])
     preprocess = create_preprocessor(config_with_defaults["camera"])
@@ -105,7 +113,7 @@ def roi(args, config, config_with_defaults):
             print("Aborting.", file=sys.stderr)
             sys.exit(1)
         elif key == 13:  # <ENTER>
-            print(points)
+            print(abs_to_rel(points, src.shape))
             sys.exit(0)
 
         clamp_points(points, src.shape)
