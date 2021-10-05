@@ -72,15 +72,18 @@ def roi(args, config, config_with_defaults):
     w = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+    def default_corners():
+        return np.array(
+            [
+                [w / 4.0, h / 4.0],
+                [3.0 * w / 4.0, h / 4.0],
+                [3.0 * w / 4.0, 3.0 * h / 4.0],
+                [w / 4.0, 3.0 * h / 4.0],
+            ]
+        )
+
     idx = 0
-    points = np.array(
-        [
-            [w / 4.0, h / 4.0],
-            [3.0 * w / 4.0, h / 4.0],
-            [3.0 * w / 4.0, 3.0 * h / 4.0],
-            [w / 4.0, 3.0 * h / 4.0],
-        ]
-    )
+    points = default_corners()
 
     while True:
         ret, src = capture.read()
@@ -117,6 +120,8 @@ def roi(args, config, config_with_defaults):
             points[idx][0] += 10.0
         elif key == 32:  # <SPACE>
             idx = (idx + 1) % 4
+        elif key == 99:  # c
+            points = default_corners()
         elif key == 27:  # <ESC>
             print("Aborting.", file=sys.stderr)
             sys.exit(1)
