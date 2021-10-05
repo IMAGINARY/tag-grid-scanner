@@ -84,21 +84,21 @@ def roi(args, config, config_with_defaults):
         if key == -1:
             continue
         elif key == 119:  # w
-            points[idx][1] -= 1.0
+            points[idx][1] -= 0.25
         elif key == 97:  # a
-            points[idx][0] -= 1.0
+            points[idx][0] -= 0.25
         elif key == 115:  # s
-            points[idx][1] += 1.0
+            points[idx][1] += 0.25
         elif key == 100:  # d
-            points[idx][0] += 1.0
+            points[idx][0] += 0.25
         elif key == 87:  # W
-            points[idx][1] -= 0.1
+            points[idx][1] -= 10.0
         elif key == 65:  # A
-            points[idx][0] -= 0.1
+            points[idx][0] -= 10.0
         elif key == 83:  # S
-            points[idx][1] += 0.1
+            points[idx][1] += 10.0
         elif key == 68:  # D
-            points[idx][0] += 0.1
+            points[idx][0] += 10.0
         elif key == 32:  # <SPACE>
             idx = (idx + 1) % 4
         elif key == 27:  # <ESC>
