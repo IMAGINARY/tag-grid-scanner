@@ -7,6 +7,7 @@ from .utils import (
     create_preprocessor,
     setup_video_capture,
     abs_corners_to_rel_corners,
+    create_frame_reader,
 )
 
 
@@ -85,11 +86,10 @@ def roi(args, config, config_with_defaults):
     idx = 0
     points = default_corners()
 
-    while True:
-        ret, src = capture.read()
+    read_frame = create_frame_reader(capture)
 
-        if not ret:
-            cv2.waitKey(1)
+    while True:
+        src = read_frame()
 
         src = preprocess(src)
         src = cv2.cvtColor(cv2.cvtColor(src, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)

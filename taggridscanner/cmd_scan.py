@@ -18,6 +18,7 @@ from .utils import (
     compute_rel_margin_trbl,
     setup_video_capture,
     create_scan_result_transformer,
+    create_frame_reader,
 )
 from .http_json_poster import HttpJsonPoster
 from .frame import detect_frame_corners
@@ -250,7 +251,8 @@ def capture_and_detect(
     tag_detector,
     notify,
 ):
-    first_frame_index = capture.get(cv2.CAP_PROP_POS_FRAMES)
+    read_frame = create_frame_reader(capture)
+    is_first_frame = True
     last_detected_tags = tag_detector.create_empty_tags()
     roi = None
     img_to_renew_roi = None
@@ -284,15 +286,7 @@ def capture_and_detect(
     while True:
         frame_start_ts = time.perf_counter()
 
-        ret, src = capture.read()
-
-        if not ret:
-            # reach end of stream -> rewind
-            # (can also happen when there is an input error due,
-            # but there is no way in OpenCV to tell the difference)
-            # maybe switch to PyAV for capturing
-            capture.set(cv2.CAP_PROP_POS_MSEC, 0.0)
-            continue
+        src = read_frame()
 
         src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
 
@@ -318,7 +312,7 @@ def capture_and_detect(
             ts = time.perf_counter()
             if ts > renew_roi_ts + renew_roi_interval and start_ts + 5.0 >= ts:
                 renew_roi_ts = ts
-                if capture.get(cv2.CAP_PROP_POS_FRAMES) == first_frame_index + 1.0:
+                if is_first_frame:
                     # first frame: compute immediately in same thread
                     roi = compute_roi(
                         undistorted_gray, rel_margin_trbl, roi_aspect_ratio
