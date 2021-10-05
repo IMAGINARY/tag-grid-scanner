@@ -1,3 +1,4 @@
+import json
 import sys
 import cv2
 import numpy as np
@@ -113,7 +114,7 @@ def roi(args, config, config_with_defaults):
             print("Aborting.", file=sys.stderr)
             sys.exit(1)
         elif key == 13:  # <ENTER>
-            print(abs_to_rel(points, src.shape))
+            print(json.dumps(abs_to_rel(points, src.shape).tolist()))
             sys.exit(0)
 
         clamp_points(points, src.shape)
