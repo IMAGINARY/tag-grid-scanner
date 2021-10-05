@@ -1,5 +1,19 @@
 import cv2
 import numpy as np
+from collections import namedtuple
+
+from taggridscanner.frame import (
+    detect_frame_corners,
+    create_frame_contour_visualizer,
+    create_frame_visualizer,
+)
+from taggridscanner.roi import (
+    compute_roi_shape,
+    compute_roi_matrix,
+    compute_roi_points,
+    compute_roi_aspect_ratio,
+    create_roi_visualizer,
+)
 
 
 def save_coefficients(mtx, dist, path):
@@ -124,6 +138,19 @@ def create_preprocessor(camera_config):
     return lambda img: linear_transform(correct_distortion(img))
 
 
+Roi = namedtuple("Roi", ["shape", "matrix"])
+
+
+def compute_roi_from_frame(frame_corners, rel_margin_trbl, roi_aspect_ratio):
+    roi_shape = compute_roi_shape(rel_margin_trbl, frame_corners, roi_aspect_ratio)
+    roi_matrix = compute_roi_matrix(rel_margin_trbl, frame_corners, roi_shape)
+
+    return Roi(
+        shape=roi_shape,
+        matrix=roi_matrix,
+    )
+
+
 def abs_corners_to_rel_corners(abs_corners, img_shape):
     return np.apply_along_axis(
         lambda p: [p[0] / img_shape[1], p[1] / img_shape[0]], 1, abs_corners
@@ -136,6 +163,57 @@ def rel_corners_to_abs_corners(rel_corners, img_shape):
     )
 
 
+def create_roi_detector_manual(dimensions_config):
+    abs_frame_size = tuple(dimensions_config["size"])
+    abs_margin_trbl = tuple(dimensions_config["padding"])
+    roi_aspect_ratio = compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl)
+
+    relative_frame_corners = dimensions_config["roi"]
+
+    def detect_roi(img_gray):
+        roi = compute_roi_from_frame(
+            rel_corners_to_abs_corners(relative_frame_corners, img_gray.shape),
+            (0, 0, 0, 0),
+            roi_aspect_ratio,
+        )
+        roi_visualizer = create_roi_visualizer(
+            compute_roi_points(roi.shape, roi.matrix)
+        )
+
+        return roi, [roi_visualizer]
+
+    return detect_roi
+
+
+def create_roi_detector_from_frame(dimensions_config):
+    abs_frame_size = tuple(dimensions_config["size"])
+    abs_margin_trbl = tuple(dimensions_config["padding"])
+    roi_aspect_ratio = compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl)
+    rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
+
+    def detect_roi(img_gray):
+        frame = detect_frame_corners(img_gray)
+        roi = compute_roi_from_frame(frame.corners, rel_margin_trbl, roi_aspect_ratio)
+
+        frame_contour_visualizer = create_frame_contour_visualizer(frame.contour)
+        frame_visualizer = create_frame_visualizer(frame.corners)
+        roi_visualizer = create_roi_visualizer(
+            compute_roi_points(roi.shape, roi.matrix)
+        )
+
+        return (
+            roi,
+            [frame_contour_visualizer, frame_visualizer, roi_visualizer],
+        )
+
+    return detect_roi
+
+
+def create_roi_detector(dimensions_config):
+    if "roi" in dimensions_config:
+        return create_roi_detector_manual(dimensions_config)
+    else:
+        return create_roi_detector_from_frame(dimensions_config)
 
 
 def create_scan_result_transformer_internal(rotate, flip_h, flip_v):
@@ -188,6 +266,42 @@ def setup_video_capture(camera_config):
         capture.set(cv2.CAP_PROP_EXPOSURE, exposure)
 
     return capture
+
+
+def create_frame_reader(capture):
+    num_frames = capture.get(cv2.CAP_PROP_FRAME_COUNT)
+    if num_frames == 0:
+
+        def read_frame():
+            while True:
+                ret, src = capture.read()
+                if ret:
+                    return src
+                else:
+                    cv2.waitKey(1)
+
+        return read_frame
+    elif num_frames == 1:
+        ret, frame = capture.read()
+        assert ret, "Reading frame failed."
+        return lambda: frame
+    else:
+
+        def read_frame():
+            while True:
+                ret, src = capture.read()
+                if not ret:
+                    # reach end of stream -> rewind
+                    # (can also happen when there is an input error,
+                    # but there is no way in OpenCV to tell the difference)
+                    # maybe switch to PyAV for capturing
+                    capture.set(cv2.CAP_PROP_POS_FRAMES, 0.0)
+                    capture.set(cv2.CAP_PROP_POS_MSEC, 0.0)
+                    cv2.waitKey(1)
+                else:
+                    return src
+
+        return read_frame
 
 
 def remove_gaps(img, grid_shape, rel_gap):

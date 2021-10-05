@@ -4,50 +4,21 @@ import sys
 import jsonpointer
 import threading
 import time
-from collections import namedtuple
 
 import cv2
 import numpy as np
 
 from .notification_manager import NotificationManager
 from .utils import (
-    load_coefficients,
-    compute_rel_margin_trbl,
     compute_rel_gap,
     create_preprocessor,
-    compute_rel_margin_trbl,
     setup_video_capture,
     create_scan_result_transformer,
+    create_roi_detector,
     create_frame_reader,
 )
 from .http_json_poster import HttpJsonPoster
-from .frame import detect_frame_corners
-from .roi import (
-    compute_roi_shape,
-    compute_roi_matrix,
-    compute_roi_points,
-    compute_roi_aspect_ratio,
-)
 from .tag_detector import TagDetector, tiles_to_image
-
-
-def compute_roi(undistorted_img_gray, rel_margin_trbl, roi_aspect_ratio):
-    frame = detect_frame_corners(undistorted_img_gray)
-
-    if frame is not None:
-        roi_shape = compute_roi_shape(rel_margin_trbl, frame.corners, roi_aspect_ratio)
-        roi_matrix = compute_roi_matrix(rel_margin_trbl, frame.corners, roi_shape)
-
-        Roi = namedtuple("Roi", ["shape", "matrix", "corners", "frame"])
-
-        return Roi(
-            shape=roi_shape,
-            matrix=roi_matrix,
-            corners=compute_roi_points(roi_shape, roi_matrix),
-            frame=frame,
-        )
-    else:
-        return None
 
 
 def extract_roi(undistorted_img, roi_matrix, roi_shape):
@@ -55,19 +26,6 @@ def extract_roi(undistorted_img, roi_matrix, roi_shape):
     return cv2.warpPerspective(
         undistorted_img, roi_matrix, roi_size, flags=cv2.INTER_AREA
     )
-
-
-def draw_frame_and_roi(undistorted_img, roi):
-    frame = roi.frame
-    frame_corners = np.array(
-        np.moveaxis(frame.corners, source=1, destination=0), dtype=np.int32
-    )
-    frame_contours = np.expand_dims(frame.contour, axis=0)
-    cv2.drawContours(undistorted_img, frame_contours, -1, (255, 0, 0), 1)
-    cv2.polylines(undistorted_img, frame_corners, True, (0, 0, 255), 1)
-
-    roi_corners = np.array(np.expand_dims(roi.corners, axis=0), dtype=np.int32)
-    cv2.polylines(undistorted_img, roi_corners, True, (0, 255, 255), 1)
 
 
 def draw_grid(img, grid_shape, tag_shape, rel_gap=(0.0, 0.0)):
@@ -139,47 +97,32 @@ def draw_grid(img, grid_shape, tag_shape, rel_gap=(0.0, 0.0)):
         )
 
 
-def visualize(preprocessed, roi, roi_image, roi_image_threshold, tiles, tag_detector):
-    if roi is not None:
-        preprocessed = cv2.cvtColor(preprocessed, cv2.COLOR_GRAY2BGR)
-        draw_frame_and_roi(preprocessed, roi)
-    cv2.namedWindow("detected frame and roi", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(
-        "detected frame and roi", preprocessed.shape[1], preprocessed.shape[1]
+def visualize_roi(preprocessed, roi_visualizers):
+    preprocessed = cv2.cvtColor(preprocessed, cv2.COLOR_GRAY2BGR)
+    for roi_visualizer in roi_visualizers:
+        preprocessed = roi_visualizer(preprocessed)
+    roi_viz_window_name = "ROI on undistorted input"
+    #    cv2.namedWindow(roi_viz_window_name, cv2.WINDOW_NORMAL)
+    #    cv2.resizeWindow(roi_viz_window_name, preprocessed.shape[1], preprocessed.shape[0])
+    cv2.imshow(roi_viz_window_name, preprocessed)
+
+
+def visualize_grid(window_name, img, tag_detector):
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    draw_grid(
+        img,
+        tag_detector.grid_shape,
+        tag_detector.tag_shape,
+        tag_detector.rel_gaps,
     )
-    cv2.imshow("detected frame and roi", preprocessed)
+    #    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    #    cv2.resizeWindow(window_name, img.shape[1], img.shape[0])
+    cv2.imshow(window_name, img)
 
-    if roi_image is not None:
-        roi_image_bgr = cv2.cvtColor(roi_image, cv2.COLOR_GRAY2BGR)
-        draw_grid(
-            roi_image_bgr,
-            tag_detector.grid_shape,
-            tag_detector.tag_shape,
-            tag_detector.rel_gaps,
-        )
-        cv2.imshow("region of interest", roi_image_bgr)
-    else:
-        cv2.destroyWindow("region of interest")
 
-    if roi_image_threshold is not None:
-        roi_image_threshold_bgr = cv2.cvtColor(roi_image_threshold, cv2.COLOR_GRAY2BGR)
-        draw_grid(
-            roi_image_threshold_bgr,
-            tag_detector.grid_shape,
-            tag_detector.tag_shape,
-            tag_detector.rel_gaps,
-        )
-        cv2.imshow("region of interest (threshold)", roi_image_threshold_bgr)
-    else:
-        cv2.destroyWindow("region of interest")
-
-    if tiles is not None:
-        tiles_img = tiles_to_image(tiles, scale_factor=8)
-        tiles_img_bgr = cv2.cvtColor(tiles_img, cv2.COLOR_GRAY2BGR)
-        draw_grid(tiles_img_bgr, tag_detector.grid_shape, tag_detector.tag_shape)
-        cv2.imshow("tiles", tiles_img_bgr)
-    else:
-        cv2.destroyWindow("tiles")
+def visualize_tiles(tiles, tag_detector):
+    tiles_img = tiles_to_image(tiles, scale_factor=8)
+    visualize_grid("Tiles", tiles_img, tag_detector)
 
 
 def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
@@ -204,15 +147,15 @@ def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
     tiles = tag_detector.extract_tiles(roi_img_threshold)
     detected_tags = tag_detector.detect_tags(tiles)
 
-    Intermediates = namedtuple(
-        "Intermediates", ["roi_image", "roi_image_threshold", "tiles"]
-    )
+    visualizers = [
+        lambda: visualize_grid("ROI extracted", roi_img, tag_detector),
+        lambda: visualize_grid(
+            "ROI extracted, threshold applied", roi_img_threshold, tag_detector
+        ),
+        lambda: visualize_tiles(tiles, tag_detector),
+    ]
 
-    return detected_tags, Intermediates(
-        roi_image=roi_img,
-        roi_image_threshold=roi_img_threshold,
-        tiles=tiles,
-    )
+    return detected_tags, visualizers
 
 
 def create_notifier(notify_config):
@@ -246,8 +189,7 @@ def create_notifier(notify_config):
 def capture_and_detect(
     capture,
     preprocess,
-    rel_margin_trbl,
-    roi_aspect_ratio,
+    detect_roi,
     tag_detector,
     notify,
 ):
@@ -255,6 +197,7 @@ def capture_and_detect(
     is_first_frame = True
     last_detected_tags = tag_detector.create_empty_tags()
     roi = None
+    roi_visualizers = []
     img_to_renew_roi = None
     img_to_renew_roi_cond = threading.Condition()
 
@@ -262,12 +205,12 @@ def capture_and_detect(
         nonlocal img_to_renew_roi
         while True:
             if img_to_renew_roi is not None:
-                new_roi = compute_roi(
-                    img_to_renew_roi, rel_margin_trbl, roi_aspect_ratio
-                )
+                new_roi, new_roi_visualizers = detect_roi(img_to_renew_roi)
                 if new_roi is not None:
                     nonlocal roi
+                    nonlocal roi_visualizers
                     roi = new_roi
+                    roi_visualizers = new_roi_visualizers
             with img_to_renew_roi_cond:
                 img_to_renew_roi_cond.wait()
 
@@ -314,9 +257,8 @@ def capture_and_detect(
                 renew_roi_ts = ts
                 if is_first_frame:
                     # first frame: compute immediately in same thread
-                    roi = compute_roi(
-                        undistorted_gray, rel_margin_trbl, roi_aspect_ratio
-                    )
+                    roi, roi_visualizers = detect_roi(undistorted_gray)
+                    is_first_frame = False
                 else:
                     # other frames: compute in background thread
                     with img_to_renew_roi_cond:
@@ -324,27 +266,19 @@ def capture_and_detect(
                         img_to_renew_roi_cond.notifyAll()
 
             if src_has_changed:
-                intermediates = None
                 if roi is not None:
-                    detected_tags, intermediates = extract_roi_and_detect_tags(
-                        undistorted_gray, roi, tag_detector
-                    )
-
+                    visualize_roi(undistorted_gray, roi_visualizers)
+                    (
+                        detected_tags,
+                        extracted_roi_visualizers,
+                    ) = extract_roi_and_detect_tags(undistorted_gray, roi, tag_detector)
                     if detected_tags is not None:
                         if not np.array_equal(last_detected_tags, detected_tags):
                             notify(detected_tags.tolist())
                             last_detected_tags = detected_tags
 
-                visualize(
-                    undistorted_gray,
-                    roi,
-                    intermediates.roi_image if intermediates is not None else None,
-                    intermediates.roi_image_threshold
-                    if intermediates is not None
-                    else None,
-                    intermediates.tiles if intermediates is not None else None,
-                    tag_detector,
-                )
+                    for extracted_roi_visualizer in extracted_roi_visualizers:
+                        extracted_roi_visualizer()
         frame_end_ts = time.perf_counter()
         key = cv2.waitKey(
             max(1, int(1000 / 15) - int(1000 * (frame_end_ts - frame_start_ts)))
@@ -375,15 +309,13 @@ def scan(args, config, config_with_defaults):
     abs_margin_trbl = tuple(config_with_defaults["dimensions"]["padding"])
     abs_gap = tuple(config_with_defaults["dimensions"]["gap"])
     crop_factors = tuple(config_with_defaults["dimensions"]["crop"])
-    roi_aspect_ratio = compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl)
+
+    detect_roi = create_roi_detector(config_with_defaults["dimensions"])
 
     rel_gap = compute_rel_gap(abs_frame_size, abs_margin_trbl, abs_gap)
 
-    rel_margin_trbl = compute_rel_margin_trbl(abs_frame_size, abs_margin_trbl)
     tag_detector = TagDetector(
         grid_shape, block_shape, rel_gap, config_with_defaults["tags"], crop_factors
     )
 
-    capture_and_detect(
-        capture, preprocess, rel_margin_trbl, roi_aspect_ratio, tag_detector, notify
-    )
+    capture_and_detect(capture, preprocess, detect_roi, tag_detector, notify)

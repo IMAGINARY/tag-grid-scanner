@@ -98,3 +98,15 @@ def is_convex(points):
 
 def orientation(p0, p1, p2):
     return np.cross(p1 - p0, p2 - p1)[0]
+
+
+def create_frame_contour_visualizer(frame_contour):
+    frame_contours_for_viz = np.expand_dims(frame_contour, axis=0)
+    return lambda img: cv2.drawContours(img, frame_contours_for_viz, -1, (255, 0, 0), 1)
+
+
+def create_frame_visualizer(frame_corners):
+    frame_corners_for_viz = np.array(
+        np.moveaxis(frame_corners, source=1, destination=0), dtype=np.int32
+    )
+    return lambda img: cv2.polylines(img, frame_corners_for_viz, True, (0, 0, 255), 1)

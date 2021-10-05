@@ -1,5 +1,3 @@
-from collections import namedtuple
-
 import cv2
 import numpy as np
 import math
@@ -129,3 +127,8 @@ def compute_max_size(corners):
 
 def distance(p0, p1):
     return np.linalg.norm(p1 - p0)
+
+
+def create_roi_visualizer(roi_corners):
+    roi_corners_for_viz = np.array(np.expand_dims(roi_corners, axis=0), dtype=np.int32)
+    return lambda img: cv2.polylines(img, roi_corners_for_viz, True, (0, 255, 255), 1)

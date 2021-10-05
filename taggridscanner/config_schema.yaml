@@ -85,6 +85,12 @@ properties:
       padding:
         "$ref": "#/$defs/nonnegvec4"
         default: [ 0.0, 0.0, 0.0, 0.0 ]
+      roi:
+        type: array
+        minItems: 4
+        maxItems: 4
+        items:
+          "$ref": "#/$defs/nonnegvec2"
       gap:
         "$ref": "#/$defs/nonnegvec2"
         default: [ 0, 0 ]
