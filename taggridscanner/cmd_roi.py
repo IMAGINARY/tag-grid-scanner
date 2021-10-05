@@ -59,12 +59,14 @@ def roi(args, config, config_with_defaults):
     h = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     idx = 0
-    points = [
-        [w / 4.0, h / 4.0],
-        [3.0 * w / 4.0, h / 4.0],
-        [3.0 * w / 4.0, 3.0 * h / 4.0],
-        [w / 4.0, 3.0 * h / 4.0],
-    ]
+    points = np.array(
+        [
+            [w / 4.0, h / 4.0],
+            [3.0 * w / 4.0, h / 4.0],
+            [3.0 * w / 4.0, 3.0 * h / 4.0],
+            [w / 4.0, 3.0 * h / 4.0],
+        ]
+    )
 
     while True:
         ret, src = capture.read()
@@ -105,7 +107,7 @@ def roi(args, config, config_with_defaults):
             print("Aborting.", file=sys.stderr)
             sys.exit(1)
         elif key == 13:  # <ENTER>
-            print(json.dumps(abs_corners_to_rel_corners(points, src.shape)))
+            print(json.dumps(abs_corners_to_rel_corners(points, src.shape).tolist()))
             sys.exit(0)
 
         clamp_points(points, src.shape)
