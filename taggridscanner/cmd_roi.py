@@ -6,6 +6,7 @@ import numpy as np
 from .utils import (
     create_preprocessor,
     setup_video_capture,
+    abs_corners_to_rel_corners,
 )
 
 
@@ -50,14 +51,6 @@ def clamp_points(points, img_shape):
         points[idx][1] = max(0, min(points[idx][1], img_shape[0]))
 
 
-def abs_to_rel(points, img_shape):
-    points = np.copy(points)
-    for idx in range(0, 4):
-        points[idx][0] = points[idx][0] / img_shape[1]
-        points[idx][1] = points[idx][1] / img_shape[0]
-    return points
-
-
 def roi(args, config, config_with_defaults):
     capture = setup_video_capture(config_with_defaults["camera"])
     preprocess = create_preprocessor(config_with_defaults["camera"])
@@ -66,14 +59,12 @@ def roi(args, config, config_with_defaults):
     h = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     idx = 0
-    points = np.array(
-        [
-            [w / 4.0, h / 4.0],
-            [3.0 * w / 4.0, h / 4.0],
-            [3.0 * w / 4.0, 3.0 * h / 4.0],
-            [w / 4.0, 3.0 * h / 4.0],
-        ]
-    )
+    points = [
+        [w / 4.0, h / 4.0],
+        [3.0 * w / 4.0, h / 4.0],
+        [3.0 * w / 4.0, 3.0 * h / 4.0],
+        [w / 4.0, 3.0 * h / 4.0],
+    ]
 
     while True:
         ret, src = capture.read()
@@ -114,7 +105,7 @@ def roi(args, config, config_with_defaults):
             print("Aborting.", file=sys.stderr)
             sys.exit(1)
         elif key == 13:  # <ENTER>
-            print(json.dumps(abs_to_rel(points, src.shape).tolist()))
+            print(json.dumps(abs_corners_to_rel_corners(points, src.shape)))
             sys.exit(0)
 
         clamp_points(points, src.shape)

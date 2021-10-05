@@ -124,6 +124,14 @@ def create_preprocessor(camera_config):
     return lambda img: linear_transform(correct_distortion(img))
 
 
+def abs_corners_to_rel_corners(abs_corners, img_shape):
+    return [[p[0] / img_shape[1], p[1] / img_shape[0]] for p in abs_corners]
+
+
+def rel_corners_to_abs_corners(rel_corners, img_shape):
+    return [[p[0] * img_shape[1], p[1] * img_shape[0]] for p in rel_corners]
+
+
 def create_scan_result_transformer_internal(rotate, flip_h, flip_v):
     def scan_result_transformer(scan_result):
         if rotate is not None:
