@@ -8,6 +8,10 @@ from .utils import (
     setup_video_capture,
     abs_corners_to_rel_corners,
     create_frame_reader,
+    load_roi_corners,
+    rel_corners_to_abs_corners,
+    save_roi_corners,
+    extract_and_preprocess_roi_config,
 )
 
 
@@ -66,6 +70,17 @@ def clamp_points(points, img_shape):
         points[idx][1] = max(0, min(points[idx][1], img_shape[0]))
 
 
+def done(config, rel_corners):
+    print(json.dumps(rel_corners.tolist()))
+    dim_config = config["dimensions"]
+    if "roi" in dim_config and type(dim_config["roi"]) == str:
+        path = dim_config["roi"]
+        print("Saving ROI corners to {}".format(path), file=sys.stderr)
+        save_roi_corners(rel_corners, path)
+    else:
+        print("No path specified. Not saving.", file=sys.stderr)
+
+
 def roi(args, config, config_with_defaults):
     capture = setup_video_capture(config_with_defaults["camera"])
     preprocess = create_preprocessor(config_with_defaults["camera"])
@@ -84,7 +99,12 @@ def roi(args, config, config_with_defaults):
         )
 
     idx = 0
-    points = default_corners()
+    roi_config = extract_and_preprocess_roi_config(config_with_defaults["dimensions"])
+    points = (
+        rel_corners_to_abs_corners(roi_config, (h, w))
+        if roi_config is not None
+        else default_corners()
+    )
 
     read_frame = create_frame_reader(capture)
 
@@ -126,7 +146,7 @@ def roi(args, config, config_with_defaults):
             print("Aborting.", file=sys.stderr)
             sys.exit(1)
         elif key == 13:  # <ENTER>
-            print(json.dumps(abs_corners_to_rel_corners(points, src.shape).tolist()))
+            done(config_with_defaults, abs_corners_to_rel_corners(points, src.shape))
             sys.exit(0)
 
         clamp_points(points, src.shape)

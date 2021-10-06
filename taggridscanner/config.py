@@ -53,19 +53,18 @@ def get_config(path):
 
 def preprocess_config(config, config_path):
     config = deepcopy(config)
+    config_dir = pathlib.Path(config_path).parent.resolve()
 
     if "size" in config["camera"]:
         config["camera"]["size"] = config["camera"]["size"][::-1]
 
     if "calibration" in config["camera"]:
-        config_dir = pathlib.Path(config_path).parent.resolve()
         calibration_path = pathlib.Path(
             config_dir, config["camera"]["calibration"]
         ).resolve()
         config["camera"]["calibration"] = str(calibration_path)
 
     if "filename" in config["camera"]:
-        config_dir = pathlib.Path(config_path).parent.resolve()
         filename_path = pathlib.Path(config_dir, config["camera"]["filename"]).resolve()
         config["camera"]["filename"] = str(filename_path)
 
@@ -73,6 +72,10 @@ def preprocess_config(config, config_path):
     config["dimensions"]["grid"] = config["dimensions"]["grid"][::-1]
     config["dimensions"]["size"] = config["dimensions"]["size"][::-1]
     config["dimensions"]["gap"] = config["dimensions"]["gap"][::-1]
+
+    if "roi" in config["dimensions"] and type(config["dimensions"]["roi"]) == str:
+        roi_path = pathlib.Path(config_dir, config["dimensions"]["roi"]).resolve()
+        config["dimensions"]["roi"] = str(roi_path)
 
     if "crop" in config["dimensions"]:
         config["dimensions"]["crop"] = config["dimensions"]["crop"][::-1]

@@ -1,3 +1,4 @@
+import sys
 import cv2
 import numpy as np
 from collections import namedtuple
@@ -16,7 +17,7 @@ from taggridscanner.roi import (
 )
 
 
-def save_coefficients(mtx, dist, path):
+def save_calibration_coefficients(mtx, dist, path):
     """Save the camera matrix and the distortion coefficients to given path/file."""
     cv_file = cv2.FileStorage(path, cv2.FILE_STORAGE_WRITE)
     cv_file.write("K", mtx)
@@ -25,7 +26,7 @@ def save_coefficients(mtx, dist, path):
     cv_file.release()
 
 
-def load_coefficients(path):
+def load_calibration_coefficients(path):
     """Loads camera matrix and distortion coefficients."""
     # FILE_STORAGE_READ
     cv_file = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
@@ -37,6 +38,19 @@ def load_coefficients(path):
 
     cv_file.release()
     return [camera_matrix, dist_matrix]
+
+
+def save_roi_corners(corners, path):
+    cv_file = cv2.FileStorage(path, cv2.FILE_STORAGE_WRITE)
+    cv_file.write("roi", corners)
+    cv_file.release()
+
+
+def load_roi_corners(path):
+    cv_file = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
+    corners = cv_file.getNode("roi").mat()
+    cv_file.release()
+    return corners
 
 
 def compute_abs_roi_size(frame_size, margin_trbl):
@@ -115,7 +129,7 @@ def create_inverse_linear_transformer(rotate, flip_h, flip_v):
 
 def create_distortion_corrector(camera_config):
     camera_matrix, distortion_coefficients = (
-        load_coefficients(camera_config["calibration"])
+        load_calibration_coefficients(camera_config["calibration"])
         if "calibration" in camera_config
         else (None, None)
     )
@@ -163,12 +177,26 @@ def rel_corners_to_abs_corners(rel_corners, img_shape):
     )
 
 
+def extract_and_preprocess_roi_config(dimensions_config):
+    if "roi" in dimensions_config:
+        roi_config = dimensions_config["roi"]
+        if type(roi_config) == str:
+            path = roi_config
+            print("Loading ROI corners from {}.".format(path), file=sys.stderr)
+            return load_roi_corners(roi_config)
+        else:
+            print("Loading ROI corners from config entry.", file=sys.stderr)
+            return roi_config
+    else:
+        return None
+
+
 def create_roi_detector_manual(dimensions_config):
     abs_frame_size = tuple(dimensions_config["size"])
     abs_margin_trbl = tuple(dimensions_config["padding"])
     roi_aspect_ratio = compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl)
 
-    relative_frame_corners = dimensions_config["roi"]
+    relative_frame_corners = extract_and_preprocess_roi_config(dimensions_config)
 
     def detect_roi(img_gray):
         roi = compute_roi_from_frame(

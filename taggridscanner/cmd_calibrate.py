@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import time
 
-from .utils import setup_video_capture, save_coefficients
+from .utils import setup_video_capture, save_calibration_coefficients
 
 num_frames = 1
 # Define the dimensions of checkerboard
@@ -130,4 +130,4 @@ def calibrate(args, config, config_with_defaults):
     cv2.destroyAllWindows()
 
     print("Saving profile to {}".format(profile_path))
-    save_coefficients(matrix, distortion, profile_path)
+    save_calibration_coefficients(matrix, distortion, profile_path)
