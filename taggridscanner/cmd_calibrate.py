@@ -20,7 +20,8 @@ def compute_error(obj_points, img_points, rvecs, tvecs, mtx, dist):
     return mean_error / len(obj_points)
 
 
-def calibrate(args, config, config_with_defaults):
+def calibrate(args):
+    config_with_defaults = args["config-with-defaults"]
     camera_config = config_with_defaults["camera"]
     profile_path = camera_config["calibration"]
 

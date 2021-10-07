@@ -4,7 +4,9 @@ import cv2
 from taggridscanner.utils import setup_video_capture
 
 
-def snapshot(args, config, config_with_defaults):
+def snapshot(args):
+    config = args["config"]
+    config_with_defaults = args["config-with-defaults"]
     camera_config = config_with_defaults["camera"]
 
     capture = setup_video_capture(camera_config)

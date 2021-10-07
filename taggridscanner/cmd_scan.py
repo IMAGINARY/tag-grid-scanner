@@ -297,7 +297,8 @@ def capture_and_detect(
     cv2.destroyAllWindows()
 
 
-def scan(args, config, config_with_defaults):
+def scan(args):
+    config_with_defaults = args["config-with-defaults"]
     capture = setup_video_capture(config_with_defaults["camera"])
     preprocess = create_preprocessor(config_with_defaults["camera"])
     notify = create_notifier(config_with_defaults["notify"])

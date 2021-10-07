@@ -81,7 +81,8 @@ def done(config, rel_corners):
         print("No path specified. Not saving.", file=sys.stderr)
 
 
-def roi(args, config, config_with_defaults):
+def roi(args):
+    config_with_defaults = args["config-with-defaults"]
     capture = setup_video_capture(config_with_defaults["camera"])
     preprocess = create_preprocessor(config_with_defaults["camera"])
 

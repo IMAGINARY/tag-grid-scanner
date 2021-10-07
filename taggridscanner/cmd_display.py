@@ -138,7 +138,9 @@ def create_img(
     return linear_transform(img)
 
 
-def display(args, config, config_with_defaults):
+def display(args):
+    config = args["config"]
+    config_with_defaults = args["config-with-defaults"]
     img_size = tuple(config_with_defaults["camera"]["size"])
     rotate = config_with_defaults["camera"]["rotate"]
     flip_h = config_with_defaults["camera"]["flipH"]
