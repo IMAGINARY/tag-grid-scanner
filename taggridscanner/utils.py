@@ -367,3 +367,15 @@ def crop_tile_pixels(img, tag_shape, crop_factors):
     )
 
     return img[is_not_cropped[0], :][:, is_not_cropped[1]]
+
+
+class Functor(object):
+    def __init__(self, func=lambda: None):
+        assert callable(func)
+        self.func = func
+
+    def __or__(self, other):
+        return Functor(lambda *args, **kwargs: other(self(*args, **kwargs)))
+
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)

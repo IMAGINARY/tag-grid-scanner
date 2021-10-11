@@ -1,22 +1,27 @@
 import sys
 import cv2
-
-from taggridscanner.utils import setup_video_capture
+from taggridscanner.pipeline.image_source import ImageSource
+from taggridscanner.pipeline.view_image import ViewImage
 
 
 def snapshot(args):
-    config = args["config"]
     config_with_defaults = args["config-with-defaults"]
     camera_config = config_with_defaults["camera"]
     output_filename = args.get("OUTFILE", None)
 
-    capture = setup_video_capture(camera_config)
+    image_source = ImageSource.create(config_with_defaults)
+    view_image = ViewImage("Snapshot")
 
-    while True:
-        ret, frame = capture.read()
+    key = 0
 
-        if ret:
-            cv2.imshow("snapshot", frame)
+    while key != 27 and key != ord("q"):
+        print(
+            "Press SPACE or ENTER to take a snapshot. Press ESC or q to quit.",
+            file=sys.stderr,
+        )
+        while key != 27 and key != ord("q"):
+            frame = image_source.read()
+            view_image(frame)
 
             key = cv2.waitKey(1)
             if key == 32 or key == 13:
@@ -25,19 +30,12 @@ def snapshot(args):
                         "Saving snapshot to {}".format(output_filename),
                         file=sys.stderr,
                     )
-                    cv2.imwrite(output_filename, frame)
+                    cv2.imwrite(camera_config["filename"], frame)
                 else:
                     print(
                         "No output filename specified. Not saving.",
                         file=sys.stderr,
                     )
-                cv2.waitKey(1000)
-            elif key == 27:
+                print("Press ESC or q to quit. Press any other key to try again.")
+                key = cv2.waitKey()
                 break
-        else:
-            key = cv2.waitKey(1)
-            if key == 27:
-                break
-
-    capture.release()
-    cv2.destroyAllWindows()
