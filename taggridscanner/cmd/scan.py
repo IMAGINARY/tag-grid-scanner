@@ -8,8 +8,8 @@ import time
 import cv2
 import numpy as np
 
-from .notification_manager import NotificationManager
-from .utils import (
+from taggridscanner.notification_manager import NotificationManager
+from taggridscanner.utils import (
     compute_rel_gap,
     create_preprocessor,
     setup_video_capture,
@@ -17,8 +17,8 @@ from .utils import (
     create_roi_detector,
     create_frame_reader,
 )
-from .http_json_poster import HttpJsonPoster
-from .tag_detector import TagDetector, tiles_to_image
+from taggridscanner.http_json_poster import HttpJsonPoster
+from taggridscanner.tag_detector import TagDetector, tiles_to_image
 
 
 def extract_roi(undistorted_img, roi_matrix, roi_shape):

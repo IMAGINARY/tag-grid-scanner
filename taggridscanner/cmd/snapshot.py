@@ -8,6 +8,7 @@ def snapshot(args):
     config = args["config"]
     config_with_defaults = args["config-with-defaults"]
     camera_config = config_with_defaults["camera"]
+    output_filename = args.get("OUTFILE", None)
 
     capture = setup_video_capture(camera_config)
 
@@ -19,18 +20,18 @@ def snapshot(args):
 
             key = cv2.waitKey(1)
             if key == 32 or key == 13:
-                if "filename" in camera_config:
+                if output_filename is not None:
                     print(
-                        "Saving snapshot to {}".format(config["camera"]["filename"]),
+                        "Saving snapshot to {}".format(output_filename),
                         file=sys.stderr,
                     )
-                    cv2.imwrite(camera_config["filename"], frame)
+                    cv2.imwrite(output_filename, frame)
                 else:
                     print(
-                        'config["camera"]["filename"] not specified. Not saving.',
+                        "No output filename specified. Not saving.",
                         file=sys.stderr,
                     )
-                key = cv2.waitKey(1000)
+                cv2.waitKey(1000)
             elif key == 27:
                 break
         else:

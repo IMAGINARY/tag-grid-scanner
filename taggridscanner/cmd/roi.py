@@ -3,7 +3,7 @@ import sys
 import cv2
 import numpy as np
 
-from .utils import (
+from taggridscanner.utils import (
     create_preprocessor,
     setup_video_capture,
     abs_corners_to_rel_corners,

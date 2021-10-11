@@ -2,11 +2,11 @@ import argparse
 import pathlib
 
 from .config import get_config
-from .cmd_scan import scan
-from .cmd_display import display
-from .cmd_calibrate import calibrate
-from .cmd_snapshot import snapshot
-from .cmd_roi import roi
+from .cmd.scan import scan
+from .cmd.display import display
+from .cmd.calibrate import calibrate
+from .cmd.snapshot import snapshot
+from .cmd.roi import roi
 
 
 class ConfigParseAction(argparse.Action):
@@ -28,7 +28,7 @@ def add_config_argument(parser):
         nargs=1,
         required=True,
         action=ConfigParseAction,
-        help="Load this configuration file.",
+        help="configuration file to load",
     )
 
 
@@ -55,6 +55,9 @@ def get_argument_parser():
     parser_snapshot = subparsers.add_parser("snapshot", help="snapshot command help")
     parser_snapshot.set_defaults(func=snapshot)
     add_config_argument(parser_snapshot)
+    parser_snapshot.add_argument(
+        "OUTFILE", nargs="?", help="file to store the snapshot"
+    )
 
     return parser
 
