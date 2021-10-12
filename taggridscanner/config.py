@@ -70,7 +70,6 @@ def preprocess_config(config, config_path):
 
     config["dimensions"]["tile"] = config["dimensions"]["tile"][::-1]
     config["dimensions"]["grid"] = config["dimensions"]["grid"][::-1]
-    config["dimensions"]["size"] = config["dimensions"]["size"][::-1]
     config["dimensions"]["gap"] = config["dimensions"]["gap"][::-1]
 
     if "roi" in config["dimensions"] and type(config["dimensions"]["roi"]) == str:
@@ -81,6 +80,21 @@ def preprocess_config(config, config_path):
         config["dimensions"]["crop"] = config["dimensions"]["crop"][::-1]
 
     return config
+
+
+def get_roi_aspect_ratio(config):
+    dim_config = config["dimensions"]
+    grid_shape = dim_config["grid"]
+    tile_shape = dim_config["tile"]
+    gap = dim_config["gap"]
+    abs_gap = (
+        grid_shape[1] * tile_shape[1] * gap[1],
+        grid_shape[0] * tile_shape[0] * gap[0],
+    )
+    target_aspect_ratio = (grid_shape[1] * tile_shape[1] * abs_gap[1] - abs_gap[1]) / (
+        grid_shape[0] * tile_shape[0] * abs_gap[0] - abs_gap[0]
+    )
+    return target_aspect_ratio
 
 
 config_schema = get_config_schema()

@@ -7,9 +7,12 @@ from taggridscanner.tag_detector import string_tag_to_np_tag
 from taggridscanner.utils import (
     compute_rel_gap,
     compute_rel_margin_trbl,
+)
+from taggridscanner.pipeline.preprocess import (
     create_linear_transformer,
     create_inverse_linear_transformer,
 )
+
 
 GAP_COLOR = 256 / 2
 FRAME_COLOR = 3 * 256 / 4

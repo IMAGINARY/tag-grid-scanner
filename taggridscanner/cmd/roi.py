@@ -2,66 +2,18 @@ import json
 import sys
 import cv2
 import numpy as np
+from taggridscanner.config import get_roi_aspect_ratio
+from taggridscanner.pipeline.draw_roi_editor import DrawROIEditor
+from taggridscanner.pipeline.extract_roi import ExtractROI
+from taggridscanner.pipeline.image_source import ImageSource
+from taggridscanner.pipeline.preprocess import Preprocess
 
 from taggridscanner.utils import (
-    create_preprocessor,
-    setup_video_capture,
     abs_corners_to_rel_corners,
-    create_frame_reader,
-    load_roi_corners,
     rel_corners_to_abs_corners,
     save_roi_corners,
     extract_and_preprocess_roi_config,
 )
-
-
-def to_surrounding_quad(points):
-    points = np.int32(points)
-    points[0][0] -= 1
-    points[0][1] -= 1
-    points[1][1] -= 1
-    points[3][0] -= 1
-    return points
-
-
-def draw_roi(img, points, active_vertex=0):
-    quad_points = to_surrounding_quad(points)
-    cv2.polylines(img, [quad_points], isClosed=True, color=(0, 255, 0), thickness=1)
-    for p in quad_points:
-        cv2.circle(img, p, radius=10, color=(0, 255, 0), thickness=2)
-    cv2.circle(
-        img, quad_points[active_vertex], radius=10, color=(0, 0, 255), thickness=2
-    )
-
-
-def label(img, text, pos, left, top):
-    text_size, baseline = cv2.getTextSize(
-        text,
-        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-        fontScale=1,
-        thickness=2,
-    )
-
-    text_x = pos[0] if left else pos[0] - text_size[0]
-    text_y = pos[1] + text_size[1] + baseline if top else pos[1] - baseline
-
-    cv2.putText(
-        img,
-        text,
-        (int(text_x), int(text_y)),
-        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-        fontScale=1,
-        color=(0, 255, 0),
-        thickness=2,
-    )
-
-
-def label_roi(img, points):
-    quad_points = to_surrounding_quad(points)
-    label(img, " 0: {}".format(points[0]), quad_points[0], True, True)
-    label(img, "1: {} ".format(points[1]), quad_points[1], False, True)
-    label(img, "2: {} ".format(points[2]), quad_points[2], False, False)
-    label(img, " 3: {}".format(points[3]), quad_points[3], True, False)
 
 
 def clamp_points(points, img_shape):
@@ -83,13 +35,12 @@ def done(config, rel_corners):
 
 def roi(args):
     config_with_defaults = args["config-with-defaults"]
-    capture = setup_video_capture(config_with_defaults["camera"])
-    preprocess = create_preprocessor(config_with_defaults["camera"])
+    image_source = ImageSource.create(config_with_defaults)
+    preprocess = Preprocess(config_with_defaults)
 
-    w = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-    h = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    h, w = image_source.size
 
-    def default_corners():
+    def default_vertices():
         return np.array(
             [
                 [w / 4.0, h / 4.0],
@@ -99,55 +50,58 @@ def roi(args):
             ]
         )
 
-    idx = 0
     roi_config = extract_and_preprocess_roi_config(config_with_defaults["dimensions"])
-    points = (
+
+    idx = 0
+    vertices = (
         rel_corners_to_abs_corners(roi_config, (h, w))
         if roi_config is not None
-        else default_corners()
+        else default_vertices()
+    )
+    draw_roi_editor = DrawROIEditor(vertices=vertices, active_vertex=idx)
+
+    extract_roi = ExtractROI(
+        target_aspect_ratio=get_roi_aspect_ratio(config_with_defaults),
+        rel_corners=abs_corners_to_rel_corners(vertices, (h, w)),
     )
 
-    read_frame = create_frame_reader(capture)
-
     while True:
-        src = read_frame()
+        src = preprocess(image_source.read())
 
-        src = preprocess(src)
-        src = cv2.cvtColor(cv2.cvtColor(src, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
+        extract_roi.rel_corners = abs_corners_to_rel_corners(vertices, (h, w))
+        cv2.imshow("extracted roi", extract_roi(src))
 
-        draw_roi(src, points, idx)
-        label_roi(src, points)
-
-        cv2.imshow("select roi", src)
+        draw_roi_editor.vertices = vertices
+        cv2.imshow("select roi", draw_roi_editor(src))
 
         key = cv2.waitKey(1)
         if key == -1:
             continue
         elif key == 119:  # w
-            points[idx][1] -= 0.25
+            vertices[idx][1] -= 0.25
         elif key == 97:  # a
-            points[idx][0] -= 0.25
+            vertices[idx][0] -= 0.25
         elif key == 115:  # s
-            points[idx][1] += 0.25
+            vertices[idx][1] += 0.25
         elif key == 100:  # d
-            points[idx][0] += 0.25
+            vertices[idx][0] += 0.25
         elif key == 87:  # W
-            points[idx][1] -= 10.0
+            vertices[idx][1] -= 10.0
         elif key == 65:  # A
-            points[idx][0] -= 10.0
+            vertices[idx][0] -= 10.0
         elif key == 83:  # S
-            points[idx][1] += 10.0
+            vertices[idx][1] += 10.0
         elif key == 68:  # D
-            points[idx][0] += 10.0
+            vertices[idx][0] += 10.0
         elif key == 32:  # <SPACE>
             idx = (idx + 1) % 4
         elif key == 99:  # c
-            points = default_corners()
+            vertices = ()
         elif key == 27:  # <ESC>
             print("Aborting.", file=sys.stderr)
             sys.exit(1)
         elif key == 13:  # <ENTER>
-            done(config_with_defaults, abs_corners_to_rel_corners(points, src.shape))
+            done(config_with_defaults, abs_corners_to_rel_corners(vertices, src.shape))
             sys.exit(0)
 
-        clamp_points(points, src.shape)
+        clamp_points(vertices, src.shape)

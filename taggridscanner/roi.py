@@ -28,7 +28,7 @@ def compute_roi_aspect_ratio(abs_frame_size, abs_margin_trbl):
     return abs_roi_size[1] / abs_roi_size[0]
 
 
-def compute_roi_shape(rel_margins_trbl, frame_corners, roi_aspect_ratio):
+def compute_roi_shape_from_frame(rel_margins_trbl, frame_corners, roi_aspect_ratio):
     roi_to_frame_ratio = (
         1 - (rel_margins_trbl[0] + rel_margins_trbl[2]),
         1 - (rel_margins_trbl[1] + rel_margins_trbl[3]),
@@ -54,7 +54,28 @@ def compute_roi_shape(rel_margins_trbl, frame_corners, roi_aspect_ratio):
     return h, w
 
 
-def compute_roi_matrix(rel_margins_trbl, frame_corners, roi_shape):
+def compute_roi_shape(roi_corners, roi_aspect_ratio):
+    p = roi_corners
+
+    dist_v_left = distance(p[3], p[0])
+    dist_v_right = distance(p[1], p[2])
+    dist_v = max(dist_v_left, dist_v_right)
+
+    dist_h_top = distance(p[0], p[1])
+    dist_h_bottom = distance(p[2], p[3])
+    dist_h = max(dist_h_top, dist_h_bottom)
+
+    if dist_v * roi_aspect_ratio * dist_v > dist_h * dist_h / roi_aspect_ratio:
+        h = math.ceil(dist_v)
+        w = math.ceil(dist_v * roi_aspect_ratio)
+    else:
+        h = math.ceil(dist_h / roi_aspect_ratio)
+        w = math.ceil(dist_h)
+
+    return h, w
+
+
+def compute_roi_matrix_from_frame(rel_margins_trbl, frame_corners, roi_shape):
     roi_height, roi_width = roi_shape
     scale_mat = np.array(
         [
@@ -69,6 +90,32 @@ def compute_roi_matrix(rel_margins_trbl, frame_corners, roi_shape):
     unit_roi_mat = frame_1x1_to_roi_1x1_mat(rel_margins_trbl)
 
     mat = np.matmul(scale_mat, np.matmul(unit_roi_mat, unit_frame_mat))
+
+    return mat
+
+
+def compute_roi_matrix(image_shape, rel_corners, roi_shape):
+    img_height, img_width = image_shape[0:2]
+    downscale_mat = np.array(
+        [
+            [1.0 / img_width, 0, 0],
+            [0, 1.0 / img_height, 0],
+            [0, 0, 1],
+        ]
+    )
+
+    roi_height, roi_width = roi_shape
+    upscale_mat = np.array(
+        [
+            [roi_width, 0, 0],
+            [0, roi_height, 0],
+            [0, 0, 1],
+        ]
+    )
+
+    unit_roi_mat = to_frame_1x1_mat(rel_corners)
+
+    mat = np.matmul(upscale_mat, np.matmul(unit_roi_mat, downscale_mat))
 
     return mat
 
@@ -94,7 +141,7 @@ def compute_roi_points(roi_shape, roi_matrix):
 # transforms the frame into the 1x1 square with top-left corner (0,0)
 def to_frame_1x1_mat(detected_frame_corners):
     unit_frame_corners = create_unit_frame_corners()
-    h = cv2.findHomography(detected_frame_corners, unit_frame_corners, cv2.LMEDS)
+    h = cv2.findHomography(detected_frame_corners, unit_frame_corners)
     return h[0]
 
 

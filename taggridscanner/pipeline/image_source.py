@@ -10,8 +10,9 @@ class ImageSource:
     def read(self):
         # TODO: read in separate thread
         ret, img = self.capture.read()
-        return img if ret else np.zeros(self.size(), np.uint8)
+        return img if ret else np.zeros(self.size, np.uint8)
 
+    @property
     def size(self):
         w = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         h = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))

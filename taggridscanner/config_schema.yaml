@@ -79,12 +79,6 @@ properties:
         "$ref": "#/$defs/posivec2"
       tile:
         "$ref": "#/$defs/posivec2"
-      size:
-        "$ref": "#/$defs/posvec2"
-        default: [ 1.0, 1.0 ]
-      padding:
-        "$ref": "#/$defs/nonnegvec4"
-        default: [ 0.0, 0.0, 0.0, 0.0 ]
       roi:
         oneOf:
           - type: string

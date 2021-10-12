@@ -9,9 +9,9 @@ import cv2
 import numpy as np
 
 from taggridscanner.notification_manager import NotificationManager
+from taggridscanner.pipeline.preprocess import Preprocess
 from taggridscanner.utils import (
     compute_rel_gap,
-    create_preprocessor,
     setup_video_capture,
     create_scan_result_transformer,
     create_roi_detector,
@@ -132,6 +132,7 @@ def extract_roi_and_detect_tags(undistorted_img_gray, roi, tag_detector):
         int(
             (roi_img.shape[0] + roi_img.shape[1])
             / (tag_detector.grid_shape[0] + tag_detector.grid_shape[1])
+            * 2
         ),
     )
     thresholding_block_size += 1 - thresholding_block_size % 2  # must be odd
@@ -300,7 +301,7 @@ def capture_and_detect(
 def scan(args):
     config_with_defaults = args["config-with-defaults"]
     capture = setup_video_capture(config_with_defaults["camera"])
-    preprocess = create_preprocessor(config_with_defaults["camera"])
+    preprocess = Preprocess(config_with_defaults)
     notify = create_notifier(config_with_defaults["notify"])
 
     block_shape = tuple(config_with_defaults["dimensions"]["tile"])

@@ -9,8 +9,8 @@ from taggridscanner.frame import (
     create_frame_visualizer,
 )
 from taggridscanner.roi import (
-    compute_roi_shape,
-    compute_roi_matrix,
+    compute_roi_shape_from_frame,
+    compute_roi_matrix_from_frame,
     compute_roi_points,
     compute_roi_aspect_ratio,
     create_roi_visualizer,
@@ -78,86 +78,16 @@ def compute_rel_gap(frame_size, margin_trbl, gaps):
     return gaps[0] / abs_roi_size[0], gaps[1] / abs_roi_size[1]
 
 
-def get_rotate_code(degrees):
-    rotate_codes = {
-        0: None,
-        90: cv2.ROTATE_90_CLOCKWISE,
-        180: cv2.ROTATE_180,
-        270: cv2.ROTATE_90_COUNTERCLOCKWISE,
-    }
-    return rotate_codes.get(degrees)
-
-
-def get_flip_code(flip_h, flip_v):
-    if flip_v and not flip_h:
-        return 0
-    elif not flip_v and flip_h:
-        return 1
-    elif flip_v and flip_h:
-        return -1
-    else:
-        return None
-
-
-def create_linear_transformer(rotate, flip_h, flip_v):
-    rotate_code = get_rotate_code(rotate)
-    flip_code = get_flip_code(flip_h, flip_v)
-
-    def linear_transformer(img):
-        if rotate_code is not None:
-            img = cv2.rotate(img, rotate_code)
-        if flip_code is not None:
-            img = cv2.flip(img, flip_code)
-        return img
-
-    return linear_transformer
-
-
-def create_inverse_linear_transformer(rotate, flip_h, flip_v):
-    rotate_code = get_rotate_code((360 - rotate) % 360)
-    flip_code = get_flip_code(flip_h, flip_v)
-
-    def inverse_linear_transformer(img):
-        if flip_code is not None:
-            img = cv2.flip(img, flip_code)
-        if rotate_code is not None:
-            img = cv2.rotate(img, rotate_code)
-        return img
-
-    return inverse_linear_transformer
-
-
-def create_distortion_corrector(camera_config):
-    camera_matrix, distortion_coefficients = (
-        load_calibration_coefficients(camera_config["calibration"])
-        if "calibration" in camera_config
-        else (None, None)
-    )
-
-    if camera_matrix is not None and distortion_coefficients is not None:
-        return lambda img: cv2.undistort(
-            img, camera_matrix, distortion_coefficients, None, None
-        )
-    else:
-        return lambda img: img
-
-
-def create_preprocessor(camera_config):
-    correct_distortion = create_distortion_corrector(camera_config)
-
-    linear_transform = create_linear_transformer(
-        camera_config["rotate"], camera_config["flipH"], camera_config["flipV"]
-    )
-
-    return lambda img: linear_transform(correct_distortion(img))
-
-
 Roi = namedtuple("Roi", ["shape", "matrix"])
 
 
 def compute_roi_from_frame(frame_corners, rel_margin_trbl, roi_aspect_ratio):
-    roi_shape = compute_roi_shape(rel_margin_trbl, frame_corners, roi_aspect_ratio)
-    roi_matrix = compute_roi_matrix(rel_margin_trbl, frame_corners, roi_shape)
+    roi_shape = compute_roi_shape_from_frame(
+        rel_margin_trbl, frame_corners, roi_aspect_ratio
+    )
+    roi_matrix = compute_roi_matrix_from_frame(
+        rel_margin_trbl, frame_corners, roi_shape
+    )
 
     return Roi(
         shape=roi_shape,
