@@ -12,6 +12,10 @@ class ViewImage(Functor):
         self.title = title
 
     @property
+    def window_name(self):
+        return self.__window_name
+
+    @property
     def title(self):
         return self.__title
 

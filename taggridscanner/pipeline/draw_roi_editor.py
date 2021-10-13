@@ -26,13 +26,13 @@ class DrawROIEditor(DrawROI):
         )
 
     def label_vertices(self, image):
-        self.label_vertex(image, 0, True, True)
-        self.label_vertex(image, 1, False, True)
-        self.label_vertex(image, 2, False, False)
-        self.label_vertex(image, 3, True, False)
+        self.label_vertex(image, 0, True, True, prefix=" ")
+        self.label_vertex(image, 1, False, True, suffix=" ")
+        self.label_vertex(image, 2, False, False, suffix=" ")
+        self.label_vertex(image, 3, True, False, prefix=" ")
 
-    def label_vertex(self, image, idx, left, top):
-        text = " {}: {}".format(idx, self.vertices[idx])
+    def label_vertex(self, image, idx, left, top, prefix="", suffix=""):
+        text = prefix + "{}: {}".format(idx, self.vertices[idx]) + suffix
         pos = self.outline_vertices[idx]
         color = (0, 0, 255) if idx == self.active_vertex else (0, 255, 0)
         label(image, text, pos, left, top, color)

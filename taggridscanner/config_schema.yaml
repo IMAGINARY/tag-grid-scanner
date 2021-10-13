@@ -91,8 +91,11 @@ properties:
         "$ref": "#/$defs/nonnegvec2"
         default: [ 0, 0 ]
       crop:
-        "$ref": "#/$defs/nonnegvec2"
-        default: [ 0.8, 0.8 ]
+        oneOf:
+          - "$ref": "#/$defs/nonnegnumber"
+          - "$ref": "#/$defs/nonnegvec2"
+        default: 0.75
+        title: Keep this fraction of the center part of each tile's pixel's area.
     required: [ grid, tile ]
     default: { }
   tags:

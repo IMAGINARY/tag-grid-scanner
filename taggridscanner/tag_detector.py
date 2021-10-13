@@ -2,8 +2,8 @@ import cv2
 import math
 import numpy as np
 
-
-from .utils import remove_gaps, crop_tile_pixels
+from .pipeline.detect_tags import string_tag_to_np_tag
+from .utils import crop_tile_pixels
 
 
 def tiles_to_image(tiles, max_value=255, scale_factor=1):
@@ -138,19 +138,6 @@ class TagDetector:
         )
         ret, tile_small_bw = cv2.threshold(tile_small, 140, 1, cv2.THRESH_BINARY)
         return tile_small_bw
-
-
-def string_tag_to_np_tag(string_tag, tag_shape):
-    return np.fromstring(
-        ",".join(list(string_tag)),
-        np.uint8,
-        tag_shape[0] * tag_shape[1],
-        ",",
-    ).reshape(tag_shape)
-
-
-def np_tag_to_string_tag(np_tag, tag_shape):
-    return "".join(str(e) for e in list(np_tag.reshape(tag_shape[0] * tag_shape[1])))
 
 
 def string_tag_to_int(string_tag):

@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import random
 
-from taggridscanner.tag_detector import string_tag_to_np_tag
+from taggridscanner.pipeline.detect_tags import string_tag_to_np_tag
 from taggridscanner.utils import (
     compute_rel_gap,
     compute_rel_margin_trbl,

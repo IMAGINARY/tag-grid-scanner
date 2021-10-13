@@ -309,3 +309,30 @@ class Functor(object):
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
+
+
+def split_image(image, grid_shape, tile_shape):
+    # splitting image into tiles according to
+    # https://towardsdatascience.com/efficiently-splitting-an-image-into-tiles-in-python-using-numpy-d1bf0dd7b6f7
+    assert len(image.shape) in [2, 3]
+
+    shape = (
+        grid_shape[0],
+        tile_shape[0],
+        grid_shape[1],
+        tile_shape[1],
+    )
+    if len(image.shape) == 3:
+        shape = (*shape, image.shape[2])
+
+    return image.reshape(shape).swapaxes(1, 2)
+
+
+def join_tiles(tiles):
+    assert len(tiles.shape) in [4, 5]
+
+    shape = (tiles.shape[0] * tiles.shape[2], tiles.shape[1] * tiles.shape[3])
+    if len(tiles.shape) == 5:
+        shape = (*shape, tiles.shape[4])
+
+    return tiles.swapaxes(1, 2).reshape(shape)
