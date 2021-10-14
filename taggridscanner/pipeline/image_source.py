@@ -50,7 +50,9 @@ class ImageSource:
             return CameraImageSource(capture)
         else:
             num_frames = capture.get(cv2.CAP_PROP_FRAME_COUNT)
-            if num_frames == 0:  # This is just a heuristic. OpenCV's capture API sucks.
+            print("frame count", num_frames)
+            if num_frames == 1.0:
+                # This is just a heuristic. OpenCV's capture API sucks.
                 return SingleImageSource(capture)
             else:
                 return VideoImageSource(capture)
