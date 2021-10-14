@@ -1,3 +1,4 @@
+import time
 import cv2
 import numpy as np
 
@@ -66,10 +67,20 @@ class CameraImageSource(ImageSource):
 class SingleImageSource(ImageSource):
     def __init__(self, capture):
         super().__init__(capture)
+        fps = 60.0
+        self.capture.set(cv2.CAP_PROP_FPS, fps)
+        self.__last_read_ts = -1.0 / fps
         self.__image = super().read()
 
     def read(self):
-        return self.__image
+        ts = time.perf_counter()
+        fps = self.capture.get(cv2.CAP_PROP_FPS)
+        if fps > 0:
+            sleep_time = 1.0 / fps - (ts - self.__last_read_ts)
+            self.__last_read_ts = ts
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+        return self.__image.copy()
 
 
 class VideoImageSource(ImageSource):
