@@ -1,17 +1,19 @@
+from abc import ABCMeta, abstractmethod
 import time
 import cv2
 import numpy as np
 
+from taggridscanner.threading import WorkerThread, SynchronizedObjectProxy
 
-class ImageSource:
+
+class ImageSource(metaclass=ABCMeta):
     def __init__(self, capture):
         super().__init__()
         self.capture = capture
 
+    @abstractmethod
     def read(self):
-        # TODO: read in separate thread
-        ret, img = self.capture.read()
-        return img if ret else np.zeros(self.size, np.uint8)
+        pass
 
     @property
     def size(self):
@@ -63,6 +65,10 @@ class CameraImageSource(ImageSource):
     def __init__(self, capture):
         super().__init__(capture)
 
+    def read(self):
+        ret, img = self.capture.read()
+        return img if ret else np.zeros(self.size, np.uint8)
+
 
 class SingleImageSource(ImageSource):
     def __init__(self, capture):
@@ -70,7 +76,8 @@ class SingleImageSource(ImageSource):
         fps = 60.0
         self.capture.set(cv2.CAP_PROP_FPS, fps)
         self.__last_read_ts = -1.0 / fps
-        self.__image = super().read()
+        ret, img = self.capture.read()
+        self.__image = img if ret else np.zeros(self.size, np.uint8)
 
     def read(self):
         ts = time.perf_counter()
@@ -85,18 +92,31 @@ class SingleImageSource(ImageSource):
 
 class VideoImageSource(ImageSource):
     def __init__(self, capture):
-        super().__init__(capture)
+        super().__init__(SynchronizedObjectProxy(capture))
+
+        def read():
+            ret, img = capture.read()
+            if not ret:
+                # reach end of stream -> rewind
+                # (can also happen when there is an input error,
+                # but there is no way in OpenCV to tell the difference)
+                # maybe switch to PyAV for capturing
+                capture.set(cv2.CAP_PROP_POS_FRAMES, 0.0)
+                capture.set(cv2.CAP_PROP_POS_MSEC, 0.0)
+
+                # try again
+                ret, img = self.capture.read()
+                return img if ret else np.zeros(self.size, np.uint8)
+            else:
+                return img
+
+        fps = capture.get(cv2.CAP_PROP_FPS)
+        rate_limit = fps if fps > 0.0 else None
+        self.worker = WorkerThread(read, rate_limit=rate_limit)
+        self.worker.start()
+
+    def __del(self):
+        self.worker.stop()
 
     def read(self):
-        ret, img = self.capture.read()
-        if not ret:
-            # reach end of stream -> rewind
-            # (can also happen when there is an input error,
-            # but there is no way in OpenCV to tell the difference)
-            # maybe switch to PyAV for capturing
-            self.capture.set(cv2.CAP_PROP_POS_FRAMES, 0.0)
-            self.capture.set(cv2.CAP_PROP_POS_MSEC, 0.0)
-            # try again
-            return super().read()
-        else:
-            return img
+        return self.worker.result.get()

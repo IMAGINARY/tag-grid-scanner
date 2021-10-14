@@ -10,6 +10,7 @@ requests = "*"
 pyyaml = "*"
 jsonschema = "*"
 jsonpointer = "*"
+wrapt = "*"
 
 [dev-packages]
 black = "*"

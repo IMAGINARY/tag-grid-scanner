@@ -1,5 +1,11 @@
 import threading
 import time
+from wrapt import synchronized, ObjectProxy
+
+
+@synchronized
+class SynchronizedObjectProxy(ObjectProxy):
+    pass
 
 
 class ThreadSafeContainer(object):
