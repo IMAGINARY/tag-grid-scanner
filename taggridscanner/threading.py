@@ -53,11 +53,11 @@ class ThreadSafeContainer(object):
 
 
 class WorkerThread(object):
-    def __init__(self, func, daemon=True):
+    def __init__(self, func, rate_limit=None, daemon=True):
         super().__init__()
         self.__func = func
         self.__result = ThreadSafeContainer()
-        self.rate_limit = None
+        self.rate_limit = rate_limit
         self.__thread_lock = threading.RLock()
         self.__thread = None
         self.__is_daemon = daemon
