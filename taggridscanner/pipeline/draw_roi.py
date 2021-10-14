@@ -19,9 +19,9 @@ class DrawROI(Functor):
         return points
 
     def __call__(self, image):
-        image = cv2.cvtColor(
-            cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR
-        )
+        assert len(image.shape) in [2, 3]
+        if len(image.shape) == 2:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
         self.draw_quad(image)
         return image
 
