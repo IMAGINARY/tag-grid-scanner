@@ -25,7 +25,7 @@ class ImageSource(metaclass=ABCMeta):
         self.capture.release()
 
     @staticmethod
-    def create(config):
+    def create_from_config(config):
         camera_config = config["camera"]
         use_camera_device = "id" in camera_config
         source = camera_config["id"] if use_camera_device else camera_config["filename"]

@@ -9,7 +9,7 @@ def snapshot(args):
     camera_config = config_with_defaults["camera"]
     output_filename = args.get("OUTFILE", None)
 
-    image_source = ImageSource.create(config_with_defaults)
+    image_source = ImageSource.create_from_config(config_with_defaults)
     view_image = ViewImage("Snapshot")
 
     key = 0

@@ -4,16 +4,32 @@ from taggridscanner.utils import Functor, load_calibration_coefficients
 
 
 class Preprocess(Functor):
-    def __init__(self, config):
+    def __init__(self, camera_matrix, distortion_coefficients, rotate, flip_h, flip_v):
         super().__init__()
-        camera_config = config["camera"]
-        self.correct_distortion = create_distortion_corrector(camera_config)
-        self.linear_transform = create_linear_transformer(
-            camera_config["rotate"], camera_config["flipH"], camera_config["flipV"]
+        self.correct_distortion = create_distortion_corrector(
+            camera_matrix, distortion_coefficients
         )
+        self.linear_transform = create_linear_transformer(rotate, flip_h, flip_v)
 
     def __call__(self, image):
         return self.linear_transform(self.correct_distortion(image))
+
+    @staticmethod
+    def create_from_config(config):
+        camera_config = config["camera"]
+        camera_matrix, distortion_coefficients = (
+            load_calibration_coefficients(camera_config["calibration"])
+            if "calibration" in camera_config
+            else (None, None)
+        )
+        rotate, flip_h, flip_v = (
+            camera_config["rotate"],
+            camera_config["flipH"],
+            camera_config["flipV"],
+        )
+        return Preprocess(
+            camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
+        )
 
 
 def get_rotate_code(degrees):
@@ -65,13 +81,7 @@ def create_inverse_linear_transformer(rotate, flip_h, flip_v):
     return inverse_linear_transformer
 
 
-def create_distortion_corrector(camera_config):
-    camera_matrix, distortion_coefficients = (
-        load_calibration_coefficients(camera_config["calibration"])
-        if "calibration" in camera_config
-        else (None, None)
-    )
-
+def create_distortion_corrector(camera_matrix, distortion_coefficients):
     if camera_matrix is not None and distortion_coefficients is not None:
         return lambda img: cv2.undistort(
             img, camera_matrix, distortion_coefficients, None, None

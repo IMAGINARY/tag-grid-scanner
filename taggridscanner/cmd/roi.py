@@ -49,8 +49,8 @@ class ROIWorker(Functor):
     def __init__(self, config_with_defaults):
         super().__init__(lambda: self.work())
         self.config_with_defaults = config_with_defaults
-        self.image_source = ImageSource.create(self.config_with_defaults)
-        self.preprocess = Preprocess(self.config_with_defaults)
+        self.image_source = ImageSource.create_from_config(self.config_with_defaults)
+        self.preprocess = Preprocess.create_from_config(self.config_with_defaults)
 
         self.h, self.w = self.image_source.size
 
