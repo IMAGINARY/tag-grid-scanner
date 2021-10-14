@@ -99,6 +99,6 @@ class WorkerThread(object):
             end_ts = time.perf_counter()
             duration = end_ts - start_ts
             rate_limit = self.rate_limit
-            if type(rate_limit) == int or type(rate_limit) == float:
-                time.sleep(max(0, 1.0 / rate_limit - duration))
+            if isinstance(rate_limit, int) or isinstance(rate_limit, float):
+                time.sleep(max(0.0, 1.0 / rate_limit - duration))
             time.sleep(0)

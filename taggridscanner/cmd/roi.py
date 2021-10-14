@@ -37,7 +37,7 @@ def clamp_points(points, img_shape):
 def done(config, rel_corners):
     print(json.dumps(rel_corners.tolist()))
     dim_config = config["dimensions"]
-    if "roi" in dim_config and type(dim_config["roi"]) == str:
+    if "roi" in dim_config and isinstance(dim_config["roi"], str):
         path = dim_config["roi"]
         print("Saving ROI corners to {}".format(path), file=sys.stderr)
         save_roi_corners(rel_corners, path)

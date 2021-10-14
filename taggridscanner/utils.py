@@ -110,7 +110,7 @@ def rel_corners_to_abs_corners(rel_corners, img_shape):
 def extract_and_preprocess_roi_config(dimensions_config):
     if "roi" in dimensions_config:
         roi_config = dimensions_config["roi"]
-        if type(roi_config) == str:
+        if isinstance(roi_config, str):
             path = roi_config
             print("Loading ROI corners from {}.".format(path), file=sys.stderr)
             return load_roi_corners(roi_config)

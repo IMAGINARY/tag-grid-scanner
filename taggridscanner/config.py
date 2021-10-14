@@ -72,12 +72,12 @@ def preprocess_config(config, config_path):
     config["dimensions"]["grid"] = config["dimensions"]["grid"][::-1]
     config["dimensions"]["gap"] = config["dimensions"]["gap"][::-1]
 
-    if "roi" in config["dimensions"] and type(config["dimensions"]["roi"]) == str:
+    if "roi" in config["dimensions"] and isinstance(config["dimensions"]["roi"], str):
         roi_path = pathlib.Path(config_dir, config["dimensions"]["roi"]).resolve()
         config["dimensions"]["roi"] = str(roi_path)
 
     if "crop" in config["dimensions"]:
-        if type(config["dimensions"]["crop"]) == list:
+        if isinstance(config["dimensions"]["crop"], list):
             config["dimensions"]["crop"] = config["dimensions"]["crop"][::-1]
         else:
             # same crop factor for both dimensions
