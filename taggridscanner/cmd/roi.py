@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 
 from taggridscanner.aux.config import get_roi_aspect_ratio
+from taggridscanner.aux.newline_detector import NewlineDetector
 from taggridscanner.pipeline.condense_tiles import CondenseTiles
 from taggridscanner.pipeline.crop_tile_cells import CropTileCells
 from taggridscanner.pipeline.detect_tags import DetectTags
@@ -93,10 +94,15 @@ class ROIWorker(Functor):
         self.last_tag_data = self.detect_tags.create_empty_tags()
 
         self.__key = ThreadSafeContainer()
+        self.__compute_visualization = ThreadSafeContainer(True)
 
     @property
     def key(self):
         return self.__key
+
+    @property
+    def compute_visualization(self):
+        return self.__compute_visualization
 
     def default_vertices(self):
         return np.array(
@@ -109,8 +115,10 @@ class ROIWorker(Functor):
         )
 
     def work(self):
+        start_ts = time.perf_counter()
+
         try:
-            key = self.key.get_nowait()
+            key = self.key.retrieve_nowait()
             if key == -1:
                 pass
             elif key == 119:  # w
@@ -137,6 +145,7 @@ class ROIWorker(Functor):
             pass
 
         clamp_points(self.vertices, (self.h, self.w))
+        self.draw_roi_editor.vertices = self.vertices
 
         src = self.preprocess(self.image_source.read())
 
@@ -144,23 +153,10 @@ class ROIWorker(Functor):
             self.vertices, (self.h, self.w)
         )
         extracted_roi = self.extract_roi(src)
-
-        self.draw_roi_editor.vertices = self.vertices
-        roi_editor_img = self.draw_roi_editor(src)
-
         gaps_removed = self.remove_gaps(extracted_roi)
-
-        gaps_removed_with_grid = self.draw_grid(gaps_removed)
-
         cropped = self.crop_tile_pixels(gaps_removed)
-        cropped_with_grid = self.draw_grid_no_crop(cropped)
-
         condensed = self.condense_tiles(cropped)
-        condensed_with_grid = self.draw_grid_no_crop(self.upscale(condensed))
-
         thresholded = self.threshold(condensed)
-        thresholded_with_grid = self.draw_grid_no_crop(self.upscale(thresholded))
-
         tag_data = self.detect_tags(thresholded)
 
         if not np.array_equal(self.last_tag_data, tag_data):
@@ -169,15 +165,36 @@ class ROIWorker(Functor):
 
         rel_corners = abs_corners_to_rel_corners(self.vertices, (self.h, self.w))
 
+        try:
+            if self.compute_visualization.get_nowait():
+                roi_editor_img = self.draw_roi_editor(src)
+                gaps_removed_with_grid = self.draw_grid(gaps_removed)
+                cropped_with_grid = self.draw_grid_no_crop(cropped)
+                condensed_with_grid = self.draw_grid_no_crop(self.upscale(condensed))
+                thresholded_with_grid = self.draw_grid_no_crop(
+                    self.upscale(thresholded)
+                )
+                viz = (
+                    roi_editor_img,
+                    extracted_roi,
+                    gaps_removed_with_grid,
+                    cropped_with_grid,
+                    condensed_with_grid,
+                    thresholded_with_grid,
+                )
+            else:
+                viz = None
+        except ThreadSafeContainer.Empty:
+            viz = None
+
+        end_ts = time.perf_counter()
+        rate = 1.0 / (end_ts - start_ts)
+        # print("max. {:.1f} detections per second".format(rate))
+
         return (
-            roi_editor_img,
-            extracted_roi,
-            gaps_removed_with_grid,
-            cropped_with_grid,
-            condensed_with_grid,
-            thresholded_with_grid,
             tag_data,
             rel_corners,
+            viz,
         )
 
 
@@ -190,10 +207,22 @@ def roi(args):
     view_cropped_tile_cells = ViewImage("cropped tile pixels")
     view_condensed_cells = ViewImage("condensed")
     view_thresholded = ViewImage("thresholded")
+    all_viewers = [
+        view_roi_editor,
+        view_extracted_roi,
+        view_roi_without_gaps,
+        view_cropped_tile_cells,
+        view_condensed_cells,
+        view_thresholded,
+    ]
 
     rel_corners = None
     max_fps = 60
     has_window = False
+
+    newline_detector = NewlineDetector()
+    newline_detector.start()
+    print("Press ENTER to hide/show the UI.")
 
     roi_worker = ROIWorker(config_with_defaults)
     producer = WorkerThread(roi_worker)
@@ -204,30 +233,46 @@ def roi(args):
         frame_start_ts = time.perf_counter()
 
         try:
-            (
-                roi_editor_img,
-                extracted_roi,
-                gaps_removed_with_grid,
-                cropped_with_grid,
-                condensed_with_grid,
-                thresholded_with_grid,
-                tag_data,
-                rel_corners,
-            ) = producer.result.get_nowait()
+            (tag_data, rel_corners, viz) = producer.result.retrieve_nowait()
+            if viz is None:
+                for view_image in all_viewers:
+                    view_image.hide()
+                cv2.pollKey()
+                has_window = False
+            else:
+                (
+                    roi_editor_img,
+                    extracted_roi,
+                    gaps_removed_with_grid,
+                    cropped_with_grid,
+                    condensed_with_grid,
+                    thresholded_with_grid,
+                ) = viz
 
-            view_roi_editor(roi_editor_img)
-            view_extracted_roi(extracted_roi)
-            view_roi_without_gaps(gaps_removed_with_grid)
-            view_cropped_tile_cells(cropped_with_grid)
-            view_condensed_cells(condensed_with_grid)
-            view_thresholded(thresholded_with_grid)
-
-            has_window = True
+                view_roi_editor(roi_editor_img)
+                view_extracted_roi(extracted_roi)
+                view_roi_without_gaps(gaps_removed_with_grid)
+                view_cropped_tile_cells(cropped_with_grid)
+                view_condensed_cells(condensed_with_grid)
+                view_thresholded(thresholded_with_grid)
+                has_window = True
         except ThreadSafeContainer.Empty:
             pass
 
         frame_end_ts = time.perf_counter()
         frame_time_left = max(0.0, 1.0 / max_fps - (frame_end_ts - frame_start_ts))
+
+        try:
+            newline_detector.result.retrieve_nowait()
+            with roi_worker.compute_visualization.condition:
+                show_ui = not roi_worker.compute_visualization.get()
+                roi_worker.compute_visualization.set(show_ui)
+            if not show_ui:
+                for view_image in all_viewers:
+                    view_image.hide()
+                cv2.pollKey()
+        except ThreadSafeContainer.Empty:
+            pass
 
         if has_window:
             ms_to_wait_for_key = max(1, int(1000 * frame_time_left))

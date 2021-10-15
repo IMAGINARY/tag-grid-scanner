@@ -119,4 +119,4 @@ class VideoImageSource(ImageSource):
         self.worker.stop()
 
     def read(self):
-        return self.worker.result.get()
+        return self.worker.result.retrieve()

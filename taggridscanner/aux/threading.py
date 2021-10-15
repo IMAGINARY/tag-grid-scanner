@@ -13,26 +13,22 @@ class ThreadSafeContainer(object):
         def __init__(self):
             super().__init__()
 
-    def __init__(self, content=None, init_content=False):
+    def __init__(self, *args):
         super().__init__()
-        self.__content = content if init_content else None
-        self.__is_full = init_content
+        self.__content, self.__is_full = (
+            (args[0], True) if len(args) > 0 else (None, False)
+        )
         self.__condition = threading.Condition()
+
+    @property
+    def condition(self):
+        return self.__condition
 
     def is_empty(self):
         return not self.__is_full
 
     def is_full(self):
         return self.__is_full
-
-    def get(self):
-        with self.__condition:
-            if self.is_empty():
-                self.__condition.wait()
-            content = self.__content
-            self.__is_full = False
-            self.__content = None
-            return content
 
     def wait(self):
         with self.__condition:
@@ -41,7 +37,29 @@ class ThreadSafeContainer(object):
             else:
                 self.__condition.wait()
 
+    def get(self):
+        with self.__condition:
+            if self.is_empty():
+                self.wait()
+            return self.__content
+
     def get_nowait(self):
+        with self.__condition:
+            if self.is_full():
+                return self.__content
+            else:
+                raise ThreadSafeContainer.Empty
+
+    def retrieve(self):
+        with self.__condition:
+            if self.is_empty():
+                self.wait()
+            content = self.__content
+            self.__is_full = False
+            self.__content = None
+            return content
+
+    def retrieve_nowait(self):
         with self.__condition:
             if self.__is_full:
                 content = self.__content
