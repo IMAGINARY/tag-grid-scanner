@@ -56,7 +56,6 @@ class RetrieveImage(metaclass=ABCMeta):
             return RetrieveFromCamera(capture)
         else:
             num_frames = capture.get(cv2.CAP_PROP_FRAME_COUNT)
-            print("frame count", num_frames)
             if num_frames == 1.0:
                 # This is just a heuristic. OpenCV's capture API sucks.
                 return RetrieveFromSingleImage(capture)

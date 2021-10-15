@@ -66,7 +66,6 @@ class DetectTags(Functor):
                     tag_dict[np_tag_to_string_tag(np_tag, self.tag_shape)] = data
                     np_tag = np.rot90(np_tag)
                     tag_dict[np_tag_to_string_tag(np_tag, self.tag_shape)] = data
-        print(tag_dict, data_for_unknown_tag)
         return (tag_dict, data_for_unknown_tag)
 
     def __call__(self, image):
