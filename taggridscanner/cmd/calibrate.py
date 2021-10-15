@@ -2,9 +2,11 @@
 
 import cv2
 import numpy as np
+import json
 import time
 
-from .utils import setup_video_capture, save_coefficients
+from taggridscanner.aux.config import store_config, set_calibration
+from taggridscanner.pipeline.image_source import ImageSource
 
 num_frames = 1
 # Define the dimensions of checkerboard
@@ -20,12 +22,11 @@ def compute_error(obj_points, img_points, rvecs, tvecs, mtx, dist):
     return mean_error / len(obj_points)
 
 
-def calibrate(args, config, config_with_defaults):
-    camera_config = config_with_defaults["camera"]
-    profile_path = camera_config["calibration"]
+def calibrate(args):
+    config_with_defaults = args["config-with-defaults"]
 
     last_frame = None
-    capture = setup_video_capture(camera_config)
+    image_source = ImageSource.create_from_config(config_with_defaults)
 
     # stop the iteration when specified
     # accuracy, epsilon, is reached or
@@ -48,10 +49,7 @@ def calibrate(args, config, config_with_defaults):
     last_error = float("inf")
 
     while True:
-        ret, frame = capture.read()
-
-        if not ret:
-            continue
+        frame = image_source.read()
 
         grayColor = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -66,7 +64,7 @@ def calibrate(args, config, config_with_defaults):
         # If desired number of corners can be detected then,
         # refine the pixel coordinates and display
         # them on the images of checker board
-        if ret == True:
+        if ret:
             # Refining pixel coordinates
             # for given 2d points.
             corners2 = cv2.cornerSubPix(
@@ -111,23 +109,38 @@ def calibrate(args, config, config_with_defaults):
             cv2.imshow("video", frame)
             cv2.waitKey(1)
 
-    ret, matrix, distortion, r_vecs, t_vecs = cv2.calibrateCamera(
+    ret, camera_matrix, [distortion], r_vecs, t_vecs = cv2.calibrateCamera(
         threedpoints, twodpoints, grayColor.shape[::-1], None, None
     )
 
-    # Displayig required output
+    (h, w) = image_source.size
+    res_matrix = np.array([[1 / w, 0, 0], [0, 1 / h, 0], [0, 0, 1]])
+    rel_camera_matrix = np.matmul(res_matrix, camera_matrix)
+
+    # Display required output
     print(" Camera matrix:")
-    print(matrix)
+    print(json.dumps(rel_camera_matrix.tolist()))
 
     print("\n Distortion coefficient:")
-    print(distortion)
+    print(json.dumps(distortion.tolist()))
 
-    undistorted = cv2.undistort(last_frame, matrix, distortion, None, None)
+    undistorted = cv2.undistort(last_frame, camera_matrix, distortion, None, None)
     cv2.imshow("video", undistorted)
-    cv2.waitKey()
 
-    capture.release()
+    config_path = args["config-path"]
+    print(
+        "Press ENTER to save calibration profile to config file: {}".format(config_path)
+    )
+    print("Press any other key to abort.")
+    key = cv2.waitKey()
+
     cv2.destroyAllWindows()
 
-    print("Saving profile to {}".format(profile_path))
-    save_coefficients(matrix, distortion, profile_path)
+    if key == 13:  # <ENTER>
+        print("Saving calibration profile to: {}".format(config_path))
+        modified_raw_config = set_calibration(
+            args["raw-config"], rel_camera_matrix, distortion
+        )
+        store_config(modified_raw_config, config_path)
+    else:
+        print("Aborting.")

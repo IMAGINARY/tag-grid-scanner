@@ -40,6 +40,26 @@ type: object
     maxItems: 4
     items:
       "$ref": "#/$defs/nonnegnumber"
+  matrix3x3:
+    type: array
+    minItems: 3
+    maxItems: 3
+    items:
+      type: array
+      minItems: 3
+      maxItems: 3
+      items:
+        type: number
+  matrix4x2:
+    type: array
+    minItems: 4
+    maxItems: 4
+    items:
+      type: array
+      minItems: 2
+      maxItems: 2
+      items:
+        type: number
   rotation:
     type: integer
     enum: [ 0, 90, 180, 270 ]
@@ -54,7 +74,20 @@ properties:
       fourcc:
         type: string
       calibration:
-        type: string
+        type: object
+        properties:
+          matrix:
+            "$ref": "#/$defs/matrix3x3"
+            default: [ [ 1, 0, 0 ], [ 0, 1, 0 ],  [ 0, 0, 1 ] ]
+          distortion:
+            type: array
+            minItems: 5
+            maxItems: 5
+            items:
+              type: number
+            default: [ 0, 0, 0, 0, 0 ]
+        required: [ matrix, distortion ]
+        default: { }
       filename:
         type: string
       rotate:
@@ -79,18 +112,18 @@ properties:
         "$ref": "#/$defs/posivec2"
       tile:
         "$ref": "#/$defs/posivec2"
-      size:
-        "$ref": "#/$defs/posvec2"
-        default: [ 1.0, 1.0 ]
-      padding:
-        "$ref": "#/$defs/nonnegvec4"
-        default: [ 0.0, 0.0, 0.0, 0.0 ]
+      roi:
+        "$ref": "#/$defs/matrix4x2"
+        default: [ [ 0, 0 ], [ 1, 0 ], [ 1, 1 ], [ 0, 1 ] ]
       gap:
         "$ref": "#/$defs/nonnegvec2"
         default: [ 0, 0 ]
       crop:
-        "$ref": "#/$defs/nonnegvec2"
-        default: [ 0.8, 0.8 ]
+        oneOf:
+          - "$ref": "#/$defs/nonnegnumber"
+          - "$ref": "#/$defs/nonnegvec2"
+        default: 0.75
+        title: Keep this fraction of the center part of each tile's pixel's area.
     required: [ grid, tile ]
     default: { }
   tags:
