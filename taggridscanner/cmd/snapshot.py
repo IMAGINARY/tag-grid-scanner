@@ -6,7 +6,6 @@ from taggridscanner.pipeline.view_image import ViewImage
 
 def snapshot(args):
     config_with_defaults = args["config-with-defaults"]
-    camera_config = config_with_defaults["camera"]
     output_filename = args.get("OUTFILE", None)
 
     image_source = ImageSource.create_from_config(config_with_defaults)
@@ -30,7 +29,7 @@ def snapshot(args):
                         "Saving snapshot to {}".format(output_filename),
                         file=sys.stderr,
                     )
-                    cv2.imwrite(camera_config["filename"], frame)
+                    cv2.imwrite(output_filename, frame)
                 else:
                     print(
                         "No output filename specified. Not saving.",
