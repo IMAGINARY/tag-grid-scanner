@@ -1,4 +1,5 @@
 # loosely based on https://medium.com/vacatronics/3-ways-to-calibrate-your-camera-using-opencv-and-python-395528a51615
+import sys
 from copy import deepcopy
 
 import cv2
@@ -130,7 +131,10 @@ def calibrate(args):
                 break
         except ThreadSafeContainer.Empty:
             pass
-        cv2.waitKey(1000 // 120)
+        key = cv2.waitKey(1000 // 120)
+        if key == 27:  # ESC
+            print("Aborting.", file=sys.stderr)
+            sys.exit(1)
 
     (h, w, *_) = frame.shape
     ret, camera_matrix, [distortion], r_vecs, t_vecs = cv2.calibrateCamera(
