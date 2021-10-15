@@ -37,15 +37,23 @@ def get_argument_parser():
     sub_parsers = parser.add_subparsers(help="sub-command help", required=True)
 
     parser_calibrate = sub_parsers.add_parser(
-        "calibrate", help="calibrate command help"
+        "calibrate",
+        help="calibrate command help",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser_calibrate.set_defaults(func=calibrate)
 
-    parser_display = sub_parsers.add_parser("display", help="display command help")
+    parser_display = sub_parsers.add_parser(
+        "display",
+        help="display command help",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser_display.set_defaults(func=display)
 
     parser_scan = sub_parsers.add_parser(
-        "scan", help="launch ROI editor, detect tags and notify"
+        "scan",
+        help="launch ROI editor, detect tags and notify",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser_scan.set_defaults(func=scan)
     parser_scan.add_argument(
@@ -56,7 +64,11 @@ def get_argument_parser():
         help="automatically hide all windows when no key is pressed for the given number of seconds",
     )
 
-    parser_snapshot = sub_parsers.add_parser("snapshot", help="snapshot command help")
+    parser_snapshot = sub_parsers.add_parser(
+        "snapshot",
+        help="snapshot command help",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser_snapshot.set_defaults(func=snapshot)
     parser_snapshot.add_argument(
         "OUTFILE", nargs="?", help="file to store the snapshot"
