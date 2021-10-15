@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from taggridscanner.aux.utils import Functor, load_calibration_coefficients
+from taggridscanner.aux.utils import Functor
 
 
 class Preprocess(Functor):

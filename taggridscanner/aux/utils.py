@@ -18,42 +18,6 @@ from taggridscanner.roi import (
 )
 
 
-def save_calibration_coefficients(mtx, dist, path):
-    """Save the camera matrix and the distortion coefficients to given path/file."""
-    cv_file = cv2.FileStorage(path, cv2.FILE_STORAGE_WRITE)
-    cv_file.write("K", mtx)
-    cv_file.write("D", dist)
-    # note you *release* you don't close() a FileStorage object
-    cv_file.release()
-
-
-def load_calibration_coefficients(path):
-    """Loads camera matrix and distortion coefficients."""
-    # FILE_STORAGE_READ
-    cv_file = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
-
-    # note we also have to specify the type to retrieve other wise we only get a
-    # FileNode object back instead of a matrix
-    camera_matrix = cv_file.getNode("K").mat()
-    dist_matrix = cv_file.getNode("D").mat()
-
-    cv_file.release()
-    return [camera_matrix, dist_matrix]
-
-
-def save_roi_corners(corners, path):
-    cv_file = cv2.FileStorage(path, cv2.FILE_STORAGE_WRITE)
-    cv_file.write("roi", corners)
-    cv_file.release()
-
-
-def load_roi_corners(path):
-    cv_file = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
-    corners = cv_file.getNode("roi").mat()
-    cv_file.release()
-    return corners
-
-
 def compute_abs_roi_size(frame_size, margin_trbl):
     roi_width = frame_size[0] - (margin_trbl[1] + margin_trbl[3])
     roi_height = frame_size[1] - (margin_trbl[0] + margin_trbl[2])
@@ -106,20 +70,6 @@ def rel_corners_to_abs_corners(rel_corners, img_shape):
     return np.apply_along_axis(
         lambda p: [p[0] * img_shape[1], p[1] * img_shape[0]], 1, rel_corners
     )
-
-
-def extract_and_preprocess_roi_config(dimensions_config):
-    if "roi" in dimensions_config:
-        roi_config = dimensions_config["roi"]
-        if isinstance(roi_config, str):
-            path = roi_config
-            print("Loading ROI corners from {}.".format(path), file=sys.stderr)
-            return load_roi_corners(roi_config)
-        else:
-            print("Loading ROI corners from config entry.", file=sys.stderr)
-            return roi_config
-    else:
-        return None
 
 
 def create_roi_detector_manual(dimensions_config):

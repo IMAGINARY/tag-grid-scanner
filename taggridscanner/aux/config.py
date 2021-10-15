@@ -77,10 +77,6 @@ def preprocess_config(config, config_path):
     config["dimensions"]["grid"] = config["dimensions"]["grid"][::-1]
     config["dimensions"]["gap"] = config["dimensions"]["gap"][::-1]
 
-    if "roi" in config["dimensions"] and isinstance(config["dimensions"]["roi"], str):
-        roi_path = pathlib.Path(config_dir, config["dimensions"]["roi"]).resolve()
-        config["dimensions"]["roi"] = str(roi_path)
-
     if "crop" in config["dimensions"]:
         if isinstance(config["dimensions"]["crop"], list):
             config["dimensions"]["crop"] = config["dimensions"]["crop"][::-1]
@@ -121,6 +117,7 @@ def set_calibration(raw_config, matrix, distortion):
         calibration_config["matrix"] = np.array(matrix).tolist()
     else:
         cfg_matrix = calibration_config["matrix"]
+        # copy element-wise to preserve YAML formatting
         for j in range(0, 3):
             for i in range(0, 3):
                 cfg_matrix[j][i] = float(matrix[j][i])
@@ -129,9 +126,25 @@ def set_calibration(raw_config, matrix, distortion):
         calibration_config["distortion"] = np.array(distortion).tolist()
     else:
         cfg_distortion = calibration_config["distortion"]
+        # copy element-wise to preserve YAML formatting
         for i in range(0, 5):
             cfg_distortion[i] = float(distortion[i])
     return raw_config
+
+
+def set_roi(raw_config, roi_vertices):
+    if "dimensions" not in raw_config:
+        raw_config["dimensions"] = {}
+    dimensions_config = raw_config["dimensions"]
+
+    if "roi" not in dimensions_config:
+        dimensions_config["roi"] = np.array(roi_vertices).tolist()
+    else:
+        roi_config = dimensions_config["roi"]
+        # copy element-wise to preserve YAML formatting
+        for j in range(0, 4):
+            for i in range(0, 2):
+                roi_config[j][i] = float(roi_vertices[j][i])
 
 
 config_schema = get_config_schema()

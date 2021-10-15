@@ -4,7 +4,7 @@ import time
 import cv2
 import numpy as np
 
-from taggridscanner.aux.config import get_roi_aspect_ratio
+from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, store_config
 from taggridscanner.aux.newline_detector import NewlineDetector
 from taggridscanner.pipeline.condense_tiles import CondenseTiles
 from taggridscanner.pipeline.crop_tile_cells import CropTileCells
@@ -23,8 +23,6 @@ from taggridscanner.aux.threading import ThreadSafeContainer, WorkerThread
 from taggridscanner.aux.utils import (
     abs_corners_to_rel_corners,
     rel_corners_to_abs_corners,
-    save_roi_corners,
-    extract_and_preprocess_roi_config,
     Functor,
     Timeout,
 )
@@ -36,15 +34,19 @@ def clamp_points(points, img_shape):
         points[idx][1] = max(0, min(points[idx][1], img_shape[0]))
 
 
-def done(config, rel_corners):
+def done(raw_config, config_path, rel_corners):
     print(json.dumps(rel_corners.tolist()))
-    dim_config = config["dimensions"]
-    if "roi" in dim_config and isinstance(dim_config["roi"], str):
-        path = dim_config["roi"]
-        print("Saving ROI corners to {}".format(path), file=sys.stderr)
-        save_roi_corners(rel_corners, path)
+
+    print("Press ENTER to save ROI to config file: {}".format(config_path))
+    print("Press any other key to abort.")
+    key = cv2.waitKey()
+
+    if key == 13:  # <ENTER>
+        print("Saving ROI to: {}".format(config_path))
+        modified_raw_config = set_roi(raw_config, rel_corners)
+        store_config(modified_raw_config, config_path)
     else:
-        print("No path specified. Not saving.", file=sys.stderr)
+        print("Aborting.")
 
 
 class ROIWorker(Functor):
@@ -56,16 +58,10 @@ class ROIWorker(Functor):
 
         self.h, self.w = self.image_source.size
 
-        roi_config = extract_and_preprocess_roi_config(
-            self.config_with_defaults["dimensions"]
-        )
-
+        rel_roi_vertices = self.config_with_defaults["dimensions"]["roi"]
         self.idx = 0
-        self.vertices = (
-            rel_corners_to_abs_corners(roi_config, (self.h, self.w))
-            if roi_config is not None
-            else self.default_vertices()
-        )
+        self.vertices = rel_corners_to_abs_corners(rel_roi_vertices, (self.h, self.w))
+
         self.draw_roi_editor = DrawROIEditor(
             vertices=self.vertices, active_vertex=self.idx
         )
@@ -146,6 +142,7 @@ class ROIWorker(Functor):
             pass
 
         clamp_points(self.vertices, (self.h, self.w))
+        self.draw_roi_editor.active_vertex = self.idx
         self.draw_roi_editor.vertices = self.vertices
 
         src = self.preprocess(self.image_source.read())
@@ -302,7 +299,8 @@ def roi(args):
                 elif key == 13:  # <ENTER>
                     if rel_corners is not None:
                         done(
-                            config_with_defaults,
+                            args["raw-config"],
+                            args["config-path"],
                             rel_corners,
                         )
                         sys.exit(0)

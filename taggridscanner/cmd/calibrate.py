@@ -4,9 +4,8 @@ import cv2
 import numpy as np
 import json
 import time
-from taggridscanner.aux.config import store_config, set_calibration
 
-from taggridscanner.aux.utils import setup_video_capture, save_calibration_coefficients
+from taggridscanner.aux.config import store_config, set_calibration
 from taggridscanner.pipeline.image_source import ImageSource
 
 num_frames = 1
