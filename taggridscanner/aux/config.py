@@ -147,4 +147,32 @@ def set_roi(raw_config, roi_vertices):
                 roi_config[j][i] = float(roi_vertices[j][i])
 
 
+def set_gap(raw_config, gap):
+    if "dimensions" not in raw_config:
+        raw_config["dimensions"] = {}
+    dimensions_config = raw_config["dimensions"]
+
+    if "gap" not in dimensions_config:
+        dimensions_config["gap"] = np.array(gap).tolist()
+    else:
+        gap_config = dimensions_config["gap"]
+        # copy element-wise to preserve YAML formatting
+        for j in range(0, 2):
+            gap_config[j] = float(gap[j])
+
+
+def set_crop(raw_config, crop):
+    if "dimensions" not in raw_config:
+        raw_config["dimensions"] = {}
+    dimensions_config = raw_config["dimensions"]
+
+    if "crop" not in dimensions_config:
+        dimensions_config["crop"] = np.array(crop).tolist()
+    else:
+        crop_config = dimensions_config["crop"]
+        # copy element-wise to preserve YAML formatting
+        for j in range(0, 2):
+            crop_config[j] = float(crop[j])
+
+
 config_schema = get_config_schema()
