@@ -1,6 +1,6 @@
 import sys
 import cv2
-from taggridscanner.pipeline.image_source import ImageSource
+from taggridscanner.pipeline.retrieve_image import RetrieveImage
 from taggridscanner.pipeline.view_image import ViewImage
 
 
@@ -8,7 +8,7 @@ def snapshot(args):
     config_with_defaults = args["config-with-defaults"]
     output_filename = args.get("OUTFILE", None)
 
-    image_source = ImageSource.create_from_config(config_with_defaults)
+    retrieve_image = RetrieveImage.create_from_config(config_with_defaults)
     view_image = ViewImage("Snapshot")
 
     key = 0
@@ -19,7 +19,7 @@ def snapshot(args):
             file=sys.stderr,
         )
         while key != 27 and key != ord("q"):
-            frame = image_source.read()
+            frame = retrieve_image()
             view_image(frame)
 
             key = cv2.waitKey(1)

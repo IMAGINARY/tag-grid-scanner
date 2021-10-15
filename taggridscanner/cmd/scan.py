@@ -19,7 +19,7 @@ from taggridscanner.pipeline.detect_tags import DetectTags
 from taggridscanner.pipeline.draw_grid import DrawGrid
 from taggridscanner.pipeline.draw_roi_editor import DrawROIEditor
 from taggridscanner.pipeline.extract_roi import ExtractROI
-from taggridscanner.pipeline.image_source import ImageSource
+from taggridscanner.pipeline.retrieve_image import RetrieveImage
 from taggridscanner.pipeline.notify import Notify
 from taggridscanner.pipeline.preprocess import Preprocess
 from taggridscanner.pipeline.remove_gaps import RemoveGaps
@@ -57,10 +57,12 @@ class ROIWorker(Functor):
     def __init__(self, config_with_defaults):
         super().__init__(lambda: self.work())
         self.config_with_defaults = config_with_defaults
-        self.image_source = ImageSource.create_from_config(self.config_with_defaults)
+        self.retrieve_image = RetrieveImage.create_from_config(
+            self.config_with_defaults
+        )
         self.preprocess = Preprocess.create_from_config(self.config_with_defaults)
 
-        self.h, self.w = self.image_source.size
+        self.h, self.w = self.retrieve_image.size
 
         rel_roi_vertices = self.config_with_defaults["dimensions"]["roi"]
         self.idx = 0
@@ -155,7 +157,7 @@ class ROIWorker(Functor):
         self.draw_roi_editor.active_vertex = self.idx
         self.draw_roi_editor.vertices = self.vertices
 
-        src = self.image_source.read()
+        src = self.retrieve_image()
         preprocessed = self.preprocess(src)
 
         self.extract_roi.rel_corners = abs_corners_to_rel_corners(

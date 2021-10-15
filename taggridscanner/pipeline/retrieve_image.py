@@ -6,7 +6,7 @@ import numpy as np
 from taggridscanner.aux.threading import WorkerThread, SynchronizedObjectProxy
 
 
-class ImageSource(metaclass=ABCMeta):
+class RetrieveImage(metaclass=ABCMeta):
     def __init__(self, capture):
         super().__init__()
         self.capture = capture
@@ -23,6 +23,9 @@ class ImageSource(metaclass=ABCMeta):
 
     def __del(self):
         self.capture.release()
+
+    def __call__(self):
+        return self.read()
 
     @staticmethod
     def create_from_config(config):
@@ -50,18 +53,18 @@ class ImageSource(metaclass=ABCMeta):
             capture.set(cv2.CAP_PROP_EXPOSURE, exposure)
 
         if use_camera_device:
-            return CameraImageSource(capture)
+            return RetrieveFromCamera(capture)
         else:
             num_frames = capture.get(cv2.CAP_PROP_FRAME_COUNT)
             print("frame count", num_frames)
             if num_frames == 1.0:
                 # This is just a heuristic. OpenCV's capture API sucks.
-                return SingleImageSource(capture)
+                return RetrieveFromSingleImage(capture)
             else:
-                return VideoImageSource(capture)
+                return RetrieveFromVideo(capture)
 
 
-class CameraImageSource(ImageSource):
+class RetrieveFromCamera(RetrieveImage):
     def __init__(self, capture):
         super().__init__(capture)
 
@@ -70,7 +73,7 @@ class CameraImageSource(ImageSource):
         return img if ret else np.zeros(self.size, np.uint8)
 
 
-class SingleImageSource(ImageSource):
+class RetrieveFromSingleImage(RetrieveImage):
     def __init__(self, capture):
         super().__init__(capture)
         fps = 60.0
@@ -90,7 +93,7 @@ class SingleImageSource(ImageSource):
         return self.__image.copy()
 
 
-class VideoImageSource(ImageSource):
+class RetrieveFromVideo(RetrieveImage):
     def __init__(self, capture):
         super().__init__(SynchronizedObjectProxy(capture))
 

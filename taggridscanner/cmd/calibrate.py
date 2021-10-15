@@ -6,7 +6,7 @@ import json
 import time
 
 from taggridscanner.aux.config import store_config, set_calibration
-from taggridscanner.pipeline.image_source import ImageSource
+from taggridscanner.pipeline.retrieve_image import RetrieveImage
 
 num_frames = 1
 # Define the dimensions of checkerboard
@@ -26,7 +26,7 @@ def calibrate(args):
     config_with_defaults = args["config-with-defaults"]
 
     last_frame = None
-    image_source = ImageSource.create_from_config(config_with_defaults)
+    retrieve_image = RetrieveImage.create_from_config(config_with_defaults)
 
     # stop the iteration when specified
     # accuracy, epsilon, is reached or
@@ -49,7 +49,7 @@ def calibrate(args):
     last_error = float("inf")
 
     while True:
-        frame = image_source.read()
+        frame = retrieve_image()
 
         grayColor = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -113,7 +113,7 @@ def calibrate(args):
         threedpoints, twodpoints, grayColor.shape[::-1], None, None
     )
 
-    (h, w) = image_source.size
+    (h, w) = retrieve_image.size
     res_matrix = np.array([[1 / w, 0, 0], [0, 1 / h, 0], [0, 0, 1]])
     rel_camera_matrix = np.matmul(res_matrix, camera_matrix)
 
