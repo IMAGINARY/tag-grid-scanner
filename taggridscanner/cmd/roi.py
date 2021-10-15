@@ -116,24 +116,26 @@ class ROIWorker(Functor):
 
         try:
             key = self.key.retrieve_nowait()
+            vert_step_small = 0.25
+            vert_step_big = 10.0
             if key == -1:
                 pass
             elif key == 119:  # w
-                self.vertices[self.idx][1] -= 0.25
+                self.vertices[self.idx][1] -= vert_step_small
             elif key == 97:  # a
-                self.vertices[self.idx][0] -= 0.25
+                self.vertices[self.idx][0] -= vert_step_small
             elif key == 115:  # s
-                self.vertices[self.idx][1] += 0.25
+                self.vertices[self.idx][1] += vert_step_small
             elif key == 100:  # d
-                self.vertices[self.idx][0] += 0.25
+                self.vertices[self.idx][0] += vert_step_small
             elif key == 87:  # W
-                self.vertices[self.idx][1] -= 10.0
+                self.vertices[self.idx][1] -= vert_step_big
             elif key == 65:  # A
-                self.vertices[self.idx][0] -= 10.0
+                self.vertices[self.idx][0] -= vert_step_big
             elif key == 83:  # S
-                self.vertices[self.idx][1] += 10.0
+                self.vertices[self.idx][1] += vert_step_big
             elif key == 68:  # D
-                self.vertices[self.idx][0] += 10.0
+                self.vertices[self.idx][0] += vert_step_big
             elif key == 32:  # <SPACE>
                 self.idx = (self.idx + 1) % 4
             elif key == 99:  # c
