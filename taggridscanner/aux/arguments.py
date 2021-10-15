@@ -6,7 +6,6 @@ from taggridscanner.cmd.scan import scan
 from taggridscanner.cmd.display import display
 from taggridscanner.cmd.calibrate import calibrate
 from taggridscanner.cmd.snapshot import snapshot
-from taggridscanner.cmd.roi import roi
 
 
 class ConfigParseAction(argparse.Action):
@@ -45,18 +44,17 @@ def get_argument_parser():
     parser_display = sub_parsers.add_parser("display", help="display command help")
     parser_display.set_defaults(func=display)
 
-    parser_roi = sub_parsers.add_parser("roi", help="roi command help")
-    parser_roi.set_defaults(func=roi)
-    parser_roi.add_argument(
+    parser_scan = sub_parsers.add_parser(
+        "scan", help="launch ROI editor, detect tags and notify"
+    )
+    parser_scan.set_defaults(func=scan)
+    parser_scan.add_argument(
         "--auto-hide",
         type=float,
         default=float("inf"),
         metavar="SECONDS",
         help="automatically hide all windows when no key is pressed for the given number of seconds",
     )
-
-    parser_scan = sub_parsers.add_parser("scan", help="scan command help")
-    parser_scan.set_defaults(func=scan)
 
     parser_snapshot = sub_parsers.add_parser("snapshot", help="snapshot command help")
     parser_snapshot.set_defaults(func=snapshot)
@@ -67,7 +65,6 @@ def get_argument_parser():
     all_subparsers = [
         parser_calibrate,
         parser_display,
-        parser_roi,
         parser_scan,
         parser_snapshot,
     ]
