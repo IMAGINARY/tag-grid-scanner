@@ -79,6 +79,11 @@ def get_argument_parser():
         default=0.25,
         help="per frame calibration error tolerance",
     )
+    parser_calibrate.add_argument(
+        "--no-pattern",
+        action="store_true",
+        help="do not show the calibration pattern",
+    )
 
     parser_display = sub_parsers.add_parser(
         "display",

@@ -105,9 +105,11 @@ def calibrate(args):
         img_shape=(args["height"], args["width"]),
         pattern_shape=(args["rows"], args["cols"]),
     )
-    view_pattern = ViewImage("calibration patter")
-    (generate_calibration_pattern | view_pattern)()
-    cv2.pollKey()
+
+    if not args["no_pattern"]:
+        view_pattern = ViewImage("calibration patter")
+        (generate_calibration_pattern | view_pattern)()
+        cv2.pollKey()
 
     view_calibration = ViewImage("image to calibrate")
 
@@ -116,16 +118,19 @@ def calibrate(args):
     producer.start()
     producer.result.wait()
 
+    view_calibration(
+        np.zeros((1, 1), dtype=np.uint8)
+    )  # use dummy image, just to have a window for waitKey()
     while True:
         try:
             (frame, threedpoints, twodpoints) = producer.result.get_nowait()
             view_calibration(frame)
-            cv2.waitKey(1)
             if len(twodpoints) >= num_frames:
                 producer.stop()
                 break
         except ThreadSafeContainer.Empty:
             pass
+        cv2.waitKey(1000 // 120)
 
     (h, w, *_) = frame.shape
     ret, camera_matrix, [distortion], r_vecs, t_vecs = cv2.calibrateCamera(
