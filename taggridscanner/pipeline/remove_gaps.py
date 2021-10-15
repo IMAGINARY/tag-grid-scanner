@@ -2,7 +2,7 @@ import math
 import cv2
 import numpy as np
 
-from taggridscanner.utils import Functor
+from taggridscanner.aux.utils import Functor
 
 
 class RemoveGaps(Functor):

@@ -2,8 +2,8 @@ import cv2
 import math
 import numpy as np
 
-from .pipeline.detect_tags import string_tag_to_np_tag
-from .utils import crop_tile_pixels
+from taggridscanner.pipeline.detect_tags import string_tag_to_np_tag
+from taggridscanner.aux.utils import crop_tile_pixels
 
 
 def tiles_to_image(tiles, max_value=255, scale_factor=1):

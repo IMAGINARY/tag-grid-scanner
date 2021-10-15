@@ -1,12 +1,12 @@
 import argparse
 import pathlib
 
-from .config import get_config
-from .cmd.scan import scan
-from .cmd.display import display
-from .cmd.calibrate import calibrate
-from .cmd.snapshot import snapshot
-from .cmd.roi import roi
+from taggridscanner.aux.config import get_config
+from taggridscanner.cmd.scan import scan
+from taggridscanner.cmd.display import display
+from taggridscanner.cmd.calibrate import calibrate
+from taggridscanner.cmd.snapshot import snapshot
+from taggridscanner.cmd.roi import roi
 
 
 class ConfigParseAction(argparse.Action):

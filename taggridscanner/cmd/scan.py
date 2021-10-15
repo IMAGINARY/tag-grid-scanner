@@ -8,16 +8,16 @@ import time
 import cv2
 import numpy as np
 
-from taggridscanner.notification_manager import NotificationManager
+from taggridscanner.aux.notification_manager import NotificationManager
 from taggridscanner.pipeline.preprocess import Preprocess
-from taggridscanner.utils import (
+from taggridscanner.aux.utils import (
     compute_rel_gap,
     setup_video_capture,
     create_scan_result_transformer,
     create_roi_detector,
     create_frame_reader,
 )
-from taggridscanner.http_json_poster import HttpJsonPoster
+from taggridscanner.aux.http_json_poster import HttpJsonPoster
 from taggridscanner.tag_detector import TagDetector, tiles_to_image
 
 

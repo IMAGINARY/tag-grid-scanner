@@ -1,6 +1,6 @@
 import numpy as np
 
-from taggridscanner.utils import Functor, split_image
+from taggridscanner.aux.utils import Functor, split_image
 
 
 class DetectTags(Functor):

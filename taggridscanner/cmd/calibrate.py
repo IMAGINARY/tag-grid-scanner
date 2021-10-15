@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import time
 
-from taggridscanner.utils import setup_video_capture, save_calibration_coefficients
+from taggridscanner.aux.utils import setup_video_capture, save_calibration_coefficients
 
 num_frames = 1
 # Define the dimensions of checkerboard

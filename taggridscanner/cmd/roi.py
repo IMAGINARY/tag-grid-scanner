@@ -4,7 +4,7 @@ import time
 import cv2
 import numpy as np
 
-from taggridscanner.config import get_roi_aspect_ratio
+from taggridscanner.aux.config import get_roi_aspect_ratio
 from taggridscanner.pipeline.condense_tiles import CondenseTiles
 from taggridscanner.pipeline.crop_tile_cells import CropTileCells
 from taggridscanner.pipeline.detect_tags import DetectTags
@@ -18,8 +18,8 @@ from taggridscanner.pipeline.threshold import Threshold
 from taggridscanner.pipeline.upscale import Upscale
 from taggridscanner.pipeline.view_image import ViewImage
 
-from taggridscanner.threading import ThreadSafeContainer, WorkerThread
-from taggridscanner.utils import (
+from taggridscanner.aux.threading import ThreadSafeContainer, WorkerThread
+from taggridscanner.aux.utils import (
     abs_corners_to_rel_corners,
     rel_corners_to_abs_corners,
     save_roi_corners,

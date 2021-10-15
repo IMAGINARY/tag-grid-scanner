@@ -1,6 +1,6 @@
 import uuid
 import cv2
-from taggridscanner.utils import Functor
+from taggridscanner.aux.utils import Functor
 
 
 class ViewImage(Functor):

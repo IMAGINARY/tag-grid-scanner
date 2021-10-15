@@ -4,7 +4,7 @@ import numpy as np
 import random
 
 from taggridscanner.pipeline.detect_tags import string_tag_to_np_tag
-from taggridscanner.utils import (
+from taggridscanner.aux.utils import (
     compute_rel_gap,
     compute_rel_margin_trbl,
 )

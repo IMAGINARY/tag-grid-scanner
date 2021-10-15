@@ -5,7 +5,7 @@ from taggridscanner.roi import (
     create_unit_frame_corners,
 )
 
-from taggridscanner.utils import Functor, rel_corners_to_abs_corners
+from taggridscanner.aux.utils import Functor, rel_corners_to_abs_corners
 
 
 class ExtractROI(Functor):

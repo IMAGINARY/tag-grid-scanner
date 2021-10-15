@@ -1,6 +1,6 @@
 import cv2
 
-from taggridscanner.utils import Functor, split_image, join_tiles
+from taggridscanner.aux.utils import Functor, split_image, join_tiles
 
 
 class Threshold(Functor):

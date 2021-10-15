@@ -3,7 +3,7 @@ import time
 import cv2
 import numpy as np
 
-from taggridscanner.threading import WorkerThread, SynchronizedObjectProxy
+from taggridscanner.aux.threading import WorkerThread, SynchronizedObjectProxy
 
 
 class ImageSource(metaclass=ABCMeta):
