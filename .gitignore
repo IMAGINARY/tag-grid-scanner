@@ -32,8 +32,8 @@ Temporary Items
 
 # End of https://www.toptal.com/developers/gitignore/api/macos
 
-after.jpg
-before.jpg
-camera-profile-*.yml
-keystoned.png
+config.yaml
+config.yml
+config.*.yaml
+config.*.yml
 snapshot.jpg
