@@ -1,4 +1,5 @@
 # loosely based on https://medium.com/vacatronics/3-ways-to-calibrate-your-camera-using-opencv-and-python-395528a51615
+from copy import deepcopy
 
 import cv2
 import numpy as np
@@ -6,56 +7,56 @@ import json
 import time
 
 from taggridscanner.aux.config import store_config, set_calibration
+from taggridscanner.aux.threading import WorkerThread, ThreadSafeContainer
+from taggridscanner.aux.utils import Functor
+from taggridscanner.pipeline.generate_calibration_pattern import (
+    GenerateCalibrationPattern,
+)
 from taggridscanner.pipeline.retrieve_image import RetrieveImage
-
-num_frames = 1
-# Define the dimensions of checkerboard
-CHECKERBOARD = (17, 31)
+from taggridscanner.pipeline.view_image import ViewImage
 
 
-def compute_error(obj_points, img_points, rvecs, tvecs, mtx, dist):
-    mean_error = 0
-    for i in range(len(obj_points)):
-        img_points2, _ = cv2.projectPoints(obj_points[i], rvecs[i], tvecs[i], mtx, dist)
-        error = cv2.norm(img_points[i], img_points2, cv2.NORM_L2) / len(img_points2)
-        mean_error += error
-    return mean_error / len(obj_points)
+class CalibrateWorker(Functor):
+    def __init__(self, args):
+        super().__init__()
+        config_with_defaults = args["config-with-defaults"]
 
+        self.retrieve_image = RetrieveImage.create_from_config(config_with_defaults)
 
-def calibrate(args):
-    config_with_defaults = args["config-with-defaults"]
+        self.checkerboard = (args["rows"], args["cols"])
 
-    last_frame = None
-    retrieve_image = RetrieveImage.create_from_config(config_with_defaults)
+        self.error_tolerance = args["tolerance"]
 
-    # stop the iteration when specified
-    # accuracy, epsilon, is reached or
-    # specified number of iterations are completed.
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+        # stop the iteration when specified
+        # accuracy, epsilon, is reached or
+        # specified number of iterations are completed.
+        self.criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-    # Vector for 3D points
-    threedpoints = []
+        # Vector for 3D points
+        self.threedpoints = []
 
-    # Vector for 2D points
-    twodpoints = []
+        # Vector for 2D points
+        self.twodpoints = []
 
-    #  3D points real world coordinates
-    objectp3d = np.zeros((1, CHECKERBOARD[0] * CHECKERBOARD[1], 3), np.float32)
-    objectp3d[0, :, :2] = np.mgrid[0 : CHECKERBOARD[0], 0 : CHECKERBOARD[1]].T.reshape(
-        -1, 2
-    )
+        #  3D points real world coordinates
+        self.objectp3d = np.zeros(
+            (1, self.checkerboard[0] * self.checkerboard[1], 3), np.float32
+        )
+        self.objectp3d[0, :, :2] = np.mgrid[
+            0 : self.checkerboard[0], 0 : self.checkerboard[1]
+        ].T.reshape(-1, 2)
 
-    t0 = time.perf_counter()
-    last_error = float("inf")
+        self.good_frame_ts = time.perf_counter()
+        self.last_error = float("inf")
 
-    while True:
-        frame = retrieve_image()
+    def __call__(self):
+        frame = self.retrieve_image()
 
         grayColor = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         ret, corners = cv2.findChessboardCorners(
             grayColor,
-            CHECKERBOARD,
+            self.checkerboard,
             cv2.CALIB_CB_ADAPTIVE_THRESH
             + cv2.CALIB_CB_FAST_CHECK
             + cv2.CALIB_CB_NORMALIZE_IMAGE,
@@ -68,52 +69,69 @@ def calibrate(args):
             # Refining pixel coordinates
             # for given 2d points.
             corners2 = cv2.cornerSubPix(
-                grayColor, corners, (11, 11), (-1, -1), criteria
+                grayColor, corners, (11, 11), (-1, -1), self.criteria
             )
 
             # Draw and display the corners
-            image = cv2.drawChessboardCorners(frame.copy(), CHECKERBOARD, corners2, ret)
-            cv2.imshow("video", image)
+            frame = cv2.drawChessboardCorners(frame, self.checkerboard, corners2, ret)
 
-            tmp_threed_points = threedpoints + [objectp3d]
-            tmp_twod_points = twodpoints + [corners2]
-
-            ret, matrix, distortion, r_vecs, t_vecs = cv2.calibrateCamera(
-                tmp_threed_points, tmp_twod_points, grayColor.shape[::-1], None, None
+            error, *_ = cv2.calibrateCamera(
+                [self.objectp3d], [corners2], grayColor.shape[::-1], None, None
             )
 
-            error = compute_error(
-                tmp_threed_points, tmp_twod_points, r_vecs, t_vecs, matrix, distortion
-            )
-            print(error)
+            print("{} (tolerance: {})".format(error, self.error_tolerance))
 
-            t1 = time.perf_counter()
-            if t1 - t0 > 2 and error < 0.0125:
-                print(error, last_error)
+            ts = time.perf_counter()
+            if ts - self.good_frame_ts > 2 and error < self.error_tolerance:
                 # keep checkerboard coordinates
-                last_frame = frame
-                last_error = error
-                t0 = t1
-                threedpoints.append(objectp3d)
-                twodpoints.append(corners2)
-
+                self.good_frame_ts = ts
+                self.threedpoints.append(self.objectp3d)
+                self.twodpoints.append(corners2)
                 print(
-                    "{}/{} frames captured for calibration (error: {})".format(
-                        len(twodpoints), num_frames, error
+                    "{} frames captured for calibration (error: {})".format(
+                        len(self.twodpoints), error
                     )
                 )
-                if len(twodpoints) == num_frames:
-                    break
-            cv2.waitKey(1)
-        else:
-            cv2.imshow("video", frame)
-            cv2.waitKey(1)
+        return (
+            frame,
+            deepcopy(self.threedpoints),
+            deepcopy(self.twodpoints),
+        )
 
+
+def calibrate(args):
+    num_frames = args["n"]
+    generate_calibration_pattern = GenerateCalibrationPattern(
+        img_shape=(args["height"], args["width"]),
+        pattern_shape=(args["rows"], args["cols"]),
+    )
+    view_pattern = ViewImage("calibration patter")
+    (generate_calibration_pattern | view_pattern)()
+    cv2.pollKey()
+
+    view_calibration = ViewImage("image to calibrate")
+
+    calibrate_worker = CalibrateWorker(args)
+    producer = WorkerThread(calibrate_worker)
+    producer.start()
+    producer.result.wait()
+
+    while True:
+        try:
+            (frame, threedpoints, twodpoints) = producer.result.get_nowait()
+            view_calibration(frame)
+            cv2.waitKey(1)
+            if len(twodpoints) >= num_frames:
+                producer.stop()
+                break
+        except ThreadSafeContainer.Empty:
+            pass
+
+    (h, w, *_) = frame.shape
     ret, camera_matrix, [distortion], r_vecs, t_vecs = cv2.calibrateCamera(
-        threedpoints, twodpoints, grayColor.shape[::-1], None, None
+        threedpoints, twodpoints, (w, h), None, None
     )
 
-    (h, w) = retrieve_image.size
     res_matrix = np.array([[1 / w, 0, 0], [0, 1 / h, 0], [0, 0, 1]])
     rel_camera_matrix = np.matmul(res_matrix, camera_matrix)
 
@@ -124,8 +142,9 @@ def calibrate(args):
     print("\n Distortion coefficient:")
     print(json.dumps(distortion.tolist()))
 
-    undistorted = cv2.undistort(last_frame, camera_matrix, distortion, None, None)
-    cv2.imshow("video", undistorted)
+    undistorted = cv2.undistort(frame, camera_matrix, distortion, None, None)
+    view_calibration.title = "calibration result"
+    view_calibration(undistorted)
 
     config_path = args["config-path"]
     print(

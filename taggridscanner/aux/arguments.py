@@ -42,6 +42,43 @@ def get_argument_parser():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser_calibrate.set_defaults(func=calibrate)
+    parser_calibrate.add_argument(
+        "--width",
+        type=int,
+        default=1920,
+        help="width of calibration pattern image",
+    )
+    parser_calibrate.add_argument(
+        "--height",
+        type=int,
+        default=1080,
+        help="height of calibration pattern image",
+    )
+    parser_calibrate.add_argument(
+        "--rows",
+        type=int,
+        default=17,
+        help="rows of the checkerboard calibration pattern",
+    )
+    parser_calibrate.add_argument(
+        "--cols",
+        type=int,
+        default=31,
+        help="columns of the checkerboard calibration pattern",
+    )
+    parser_calibrate.add_argument(
+        "-n",
+        type=int,
+        default=10,
+        help="number of pictures taken",
+    )
+    parser_calibrate.add_argument(
+        "-t",
+        "--tolerance",
+        type=float,
+        default=0.25,
+        help="per frame calibration error tolerance",
+    )
 
     parser_display = sub_parsers.add_parser(
         "display",
