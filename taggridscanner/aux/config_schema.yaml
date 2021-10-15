@@ -40,6 +40,16 @@ type: object
     maxItems: 4
     items:
       "$ref": "#/$defs/nonnegnumber"
+  matrix3x3:
+    type: array
+    minItems: 3
+    maxItems: 3
+    items:
+      type: array
+      minItems: 3
+      maxItems: 3
+      items:
+        type: number
   rotation:
     type: integer
     enum: [ 0, 90, 180, 270 ]
@@ -54,7 +64,20 @@ properties:
       fourcc:
         type: string
       calibration:
-        type: string
+        type: object
+        properties:
+          matrix:
+            "$ref": "#/$defs/matrix3x3"
+            default: [ [ 1, 0, 0 ], [ 0, 1, 0 ],  [ 0, 0, 1 ] ]
+          distortion:
+            type: array
+            minItems: 5
+            maxItems: 5
+            items:
+              type: number
+            default: [ 0, 0, 0, 0, 0 ]
+        required: [ matrix, distortion ]
+        default: { }
       filename:
         type: string
       rotate:

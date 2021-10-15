@@ -1,7 +1,7 @@
 import argparse
 import pathlib
 
-from taggridscanner.aux.config import get_config
+from taggridscanner.aux.config import load_config
 from taggridscanner.cmd.scan import scan
 from taggridscanner.cmd.display import display
 from taggridscanner.cmd.calibrate import calibrate
@@ -14,10 +14,11 @@ class ConfigParseAction(argparse.Action):
         super().__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        config, config_with_defaults = get_config(values)
+        config, config_with_defaults, raw_config = load_config(values)
         setattr(namespace, "config-path", values)
         setattr(namespace, "config", config)
         setattr(namespace, "config-with-defaults", config_with_defaults)
+        setattr(namespace, "raw-config", raw_config)
 
 
 def add_config_argument(parser):

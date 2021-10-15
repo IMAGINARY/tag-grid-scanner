@@ -1,13 +1,16 @@
 import cv2
+import numpy as np
 
 from taggridscanner.aux.utils import Functor, load_calibration_coefficients
 
 
 class Preprocess(Functor):
-    def __init__(self, camera_matrix, distortion_coefficients, rotate, flip_h, flip_v):
+    def __init__(
+        self, rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
+    ):
         super().__init__()
         self.correct_distortion = create_distortion_corrector(
-            camera_matrix, distortion_coefficients
+            rel_camera_matrix, distortion_coefficients
         )
         self.linear_transform = create_linear_transformer(rotate, flip_h, flip_v)
 
@@ -17,10 +20,10 @@ class Preprocess(Functor):
     @staticmethod
     def create_from_config(config):
         camera_config = config["camera"]
-        camera_matrix, distortion_coefficients = (
-            load_calibration_coefficients(camera_config["calibration"])
-            if "calibration" in camera_config
-            else (None, None)
+        calibration_config = camera_config["calibration"]
+        rel_camera_matrix, distortion_coefficients = (
+            np.array(calibration_config["matrix"]),
+            np.array(calibration_config["distortion"]),
         )
         rotate, flip_h, flip_v = (
             camera_config["rotate"],
@@ -28,7 +31,7 @@ class Preprocess(Functor):
             camera_config["flipV"],
         )
         return Preprocess(
-            camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
+            rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
         )
 
 
@@ -81,10 +84,17 @@ def create_inverse_linear_transformer(rotate, flip_h, flip_v):
     return inverse_linear_transformer
 
 
-def create_distortion_corrector(camera_matrix, distortion_coefficients):
-    if camera_matrix is not None and distortion_coefficients is not None:
-        return lambda img: cv2.undistort(
-            img, camera_matrix, distortion_coefficients, None, None
-        )
+def create_distortion_corrector(rel_camera_matrix, distortion_coefficients):
+    if rel_camera_matrix is not None and distortion_coefficients is not None:
+
+        def undistort(img):
+            h, w, *_ = img.shape
+            res_matrix = np.array([[w, 0, 0], [0, h, 0], [0, 0, 1]])
+            abs_camera_matrix = np.matmul(res_matrix, rel_camera_matrix)
+            return cv2.undistort(
+                img, abs_camera_matrix, distortion_coefficients, None, None
+            )
+
+        return undistort
     else:
         return lambda img: img
