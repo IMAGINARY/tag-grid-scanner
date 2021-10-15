@@ -1,14 +1,16 @@
 from copy import deepcopy
 import jsonschema
 import pathlib
-import yaml
+from ruamel.yaml import YAML
+
+yaml = YAML()
 
 
 def get_config_schema():
     script_dir = pathlib.Path(__file__).parent.resolve()
     schema_path = pathlib.Path(script_dir, "./config_schema.yaml").resolve()
     with open(schema_path) as schema_file:
-        schema = yaml.load(schema_file, Loader=yaml.CLoader)
+        schema = yaml.load(schema_file)
         return schema
 
 
@@ -36,7 +38,7 @@ def extend_validator_with_default(validator_class):
 
 def get_config(path):
     with open(path, mode="r", encoding="UTF-8") as config_file:
-        config = yaml.load(config_file, Loader=yaml.CLoader)
+        config = yaml.load(config_file)
         config_file.close()
 
         validator = jsonschema.validators.Draft202012Validator
