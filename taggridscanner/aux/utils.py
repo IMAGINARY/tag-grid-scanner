@@ -1,4 +1,5 @@
 import sys
+import time
 import cv2
 import numpy as np
 from collections import namedtuple
@@ -336,3 +337,16 @@ def join_tiles(tiles):
         shape = (*shape, tiles.shape[4])
 
     return tiles.swapaxes(1, 2).reshape(shape)
+
+
+class Timeout(object):
+    def __init__(self, delay):
+        self.__delay = delay
+        self.__last_reset = 0
+        self.reset()
+
+    def reset(self):
+        self.__last_reset = time.perf_counter()
+
+    def is_up(self):
+        return self.__last_reset + self.__delay < time.perf_counter()

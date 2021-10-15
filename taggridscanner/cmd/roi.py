@@ -26,6 +26,7 @@ from taggridscanner.aux.utils import (
     save_roi_corners,
     extract_and_preprocess_roi_config,
     Functor,
+    Timeout,
 )
 
 
@@ -224,6 +225,8 @@ def roi(args):
     newline_detector.start()
     print("Press ENTER to hide/show the UI.")
 
+    auto_hide_timeout = Timeout(args["auto_hide"])
+
     roi_worker = ROIWorker(config_with_defaults)
     producer = WorkerThread(roi_worker)
     producer.rate_limit = 4
@@ -264,10 +267,22 @@ def roi(args):
 
         try:
             newline_detector.result.retrieve_nowait()
+            auto_hide_timeout.reset()
             with roi_worker.compute_visualization.condition:
-                show_ui = not roi_worker.compute_visualization.get()
+                try:
+                    show_ui = not roi_worker.compute_visualization.get_nowait()
+                except ThreadSafeContainer.Empty:
+                    show_ui = False
                 roi_worker.compute_visualization.set(show_ui)
-            if not show_ui:
+        except ThreadSafeContainer.Empty:
+            pass
+
+        if auto_hide_timeout.is_up():
+            auto_hide_timeout.reset()
+            roi_worker.compute_visualization.set(False)
+
+        try:
+            if not roi_worker.compute_visualization.get_nowait():
                 for view_image in all_viewers:
                     view_image.hide()
                 cv2.pollKey()
@@ -280,6 +295,7 @@ def roi(args):
             if key == -1:
                 pass
             else:
+                auto_hide_timeout.reset()
                 if key == 27:  # <ESC>
                     print("Aborting.", file=sys.stderr)
                     sys.exit(1)

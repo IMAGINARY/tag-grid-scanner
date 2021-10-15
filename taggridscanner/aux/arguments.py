@@ -46,6 +46,13 @@ def get_argument_parser():
 
     parser_roi = sub_parsers.add_parser("roi", help="roi command help")
     parser_roi.set_defaults(func=roi)
+    parser_roi.add_argument(
+        "--auto-hide",
+        type=float,
+        default=float("inf"),
+        metavar="SECONDS",
+        help="automatically hide all windows when no key is pressed for the given number of seconds",
+    )
 
     parser_scan = sub_parsers.add_parser("scan", help="scan command help")
     parser_scan.set_defaults(func=scan)
