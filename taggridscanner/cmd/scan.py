@@ -239,7 +239,7 @@ def scan(args):
 
     roi_worker = ROIWorker(config_with_defaults)
     producer = WorkerThread(roi_worker)
-    producer.rate_limit = 4
+    producer.rate_limit = args["rate_limit"]
     producer.start()
     producer.result.wait()
 

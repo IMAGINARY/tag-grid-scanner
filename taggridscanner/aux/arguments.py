@@ -105,6 +105,13 @@ def get_argument_parser():
         metavar="SECONDS",
         help="automatically hide all windows when no key is pressed for the given number of seconds",
     )
+    parser_scan.add_argument(
+        "--rate-limit",
+        type=float,
+        default=4,
+        metavar="FPS",
+        help="limit detection rate to save resources",
+    )
 
     parser_snapshot = sub_parsers.add_parser(
         "snapshot",
