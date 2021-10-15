@@ -14,26 +14,6 @@ def rel_corners_to_abs_corners(rel_corners, img_shape):
     )
 
 
-def create_scan_result_transformer_internal(rotate, flip_h, flip_v):
-    def scan_result_transformer(scan_result):
-        if rotate is not None:
-            scan_result = np.rot90(scan_result, (360 - rotate) / 90)
-        if flip_h:
-            scan_result = np.fliplr(scan_result)
-        if flip_v:
-            scan_result = np.flipud(scan_result)
-        return scan_result.tolist()
-
-    return scan_result_transformer
-
-
-def create_scan_result_transformer(notify_config):
-    rotate = notify_config["rotate"]
-    flip_h = notify_config["flipH"]
-    flip_v = notify_config["flipV"]
-    return create_scan_result_transformer_internal(rotate, flip_h, flip_v)
-
-
 class Functor(object):
     def __init__(self, func=lambda: None):
         assert callable(func)

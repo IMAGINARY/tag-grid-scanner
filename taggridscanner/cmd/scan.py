@@ -2,13 +2,17 @@ import json
 import sys
 import time
 import cv2
-import jsonpointer
 import numpy as np
 
 from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, store_config
-from taggridscanner.aux.http_json_poster import HttpJsonPoster
 from taggridscanner.aux.newline_detector import NewlineDetector
-from taggridscanner.aux.notification_manager import NotificationManager
+from taggridscanner.aux.threading import ThreadSafeContainer, WorkerThread
+from taggridscanner.aux.utils import (
+    abs_corners_to_rel_corners,
+    rel_corners_to_abs_corners,
+    Functor,
+    Timeout,
+)
 from taggridscanner.pipeline.condense_tiles import CondenseTiles
 from taggridscanner.pipeline.crop_tile_cells import CropTileCells
 from taggridscanner.pipeline.detect_tags import DetectTags
@@ -16,54 +20,19 @@ from taggridscanner.pipeline.draw_grid import DrawGrid
 from taggridscanner.pipeline.draw_roi_editor import DrawROIEditor
 from taggridscanner.pipeline.extract_roi import ExtractROI
 from taggridscanner.pipeline.image_source import ImageSource
+from taggridscanner.pipeline.notify import Notify
 from taggridscanner.pipeline.preprocess import Preprocess
 from taggridscanner.pipeline.remove_gaps import RemoveGaps
 from taggridscanner.pipeline.threshold import Threshold
+from taggridscanner.pipeline.transform_tag_data import TransformTagData
 from taggridscanner.pipeline.upscale import Upscale
 from taggridscanner.pipeline.view_image import ViewImage
-
-from taggridscanner.aux.threading import ThreadSafeContainer, WorkerThread
-from taggridscanner.aux.utils import (
-    abs_corners_to_rel_corners,
-    rel_corners_to_abs_corners,
-    Functor,
-    Timeout,
-    create_scan_result_transformer,
-)
 
 
 def clamp_points(points, img_shape):
     for idx in range(0, 4):
         points[idx][0] = max(0, min(points[idx][0], img_shape[1]))
         points[idx][1] = max(0, min(points[idx][1], img_shape[0]))
-
-
-def create_notifier(notify_config):
-    notifiers = []
-    if notify_config["stdout"]:
-        notifiers.append(lambda s: print(s, file=sys.stdout))
-    if notify_config["stderr"]:
-        notifiers.append(lambda s: print(s, file=sys.stderr))
-    if notify_config["remote"]:
-        http_json_poster = HttpJsonPoster(notify_config["url"])
-        notifiers.append(lambda s: http_json_poster.request_post(s))
-
-    notification_manager = NotificationManager(
-        notifiers, notify_config["interval"] if notify_config["repeat"] else None
-    )
-
-    template = notify_config["template"]
-    assign_to = notify_config["assignTo"]
-
-    scan_result_transformer = create_scan_result_transformer(notify_config)
-
-    def notify(new_tags):
-        new_tags = scan_result_transformer(new_tags)
-        notification_obj = jsonpointer.set_pointer(template, assign_to, new_tags, False)
-        notification = json.dumps(notification_obj)
-        notification_manager.notify(notification)
-
-    return notify
 
 
 def done(raw_config, config_path, rel_corners):
@@ -122,6 +91,10 @@ class ROIWorker(Functor):
         self.upscale = Upscale(10)
         self.draw_grid = DrawGrid(grid_shape, tag_shape, crop_factors)
         self.draw_grid_no_crop = DrawGrid(grid_shape, tag_shape, (1, 1))
+
+        transform_tag_data = TransformTagData.create_from_config(config_with_defaults)
+        notify = Notify.create_from_config(config_with_defaults)
+        self.transform_and_notify = transform_tag_data | notify
 
         self.last_tag_data = self.detect_tags.create_empty_tags()
 
@@ -197,6 +170,7 @@ class ROIWorker(Functor):
 
         if not np.array_equal(self.last_tag_data, tag_data):
             self.last_tag_data = tag_data
+            self.transform_and_notify(tag_data)
 
         rel_corners = abs_corners_to_rel_corners(self.vertices, (self.h, self.w))
 
@@ -267,18 +241,11 @@ def scan(args):
     producer.start()
     producer.result.wait()
 
-    last_tag_data = None
-    notify = create_notifier(config_with_defaults["notify"])
-
     while True:
         frame_start_ts = time.perf_counter()
 
         try:
             (tag_data, rel_corners, viz) = producer.result.retrieve_nowait()
-
-            if not np.array_equal(last_tag_data, tag_data):
-                notify(tag_data.tolist())
-                last_tag_data = tag_data
 
             if viz is None:
                 for view_image in all_viewers:
