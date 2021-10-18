@@ -35,7 +35,7 @@ def clamp_points(points, img_shape):
         points[idx][1] = max(0, min(points[idx][1], img_shape[0]))
 
 
-class ROIWorker(Functor):
+class ScanWorker(Functor):
     def __init__(self, config_with_defaults):
         super().__init__(lambda: self.work())
         self.config_with_defaults = config_with_defaults
@@ -219,7 +219,7 @@ def scan(args):
 
     auto_hide_timeout = Timeout(args["auto_hide"])
 
-    roi_worker = ROIWorker(config_with_defaults)
+    roi_worker = ScanWorker(config_with_defaults)
     producer = WorkerThread(roi_worker)
     producer.rate_limit = args["rate_limit"]
     producer.start()
