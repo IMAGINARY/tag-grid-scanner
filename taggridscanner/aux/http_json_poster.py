@@ -1,3 +1,4 @@
+import sys
 import threading
 import requests
 
@@ -8,13 +9,18 @@ class HttpJsonPoster:
         "Accept": "application/json",
     }
 
-    def __init__(self, url):
+    def __init__(self, url, timeout=3):
         self.__cond = threading.Condition()
         self.__url = url
-        self.__last_data = None
+        self.timeout = timeout
+        self.__data = None
         self.__new_data = None
         self.__thread = threading.Thread(target=lambda: self.__loop(), daemon=True)
         self.__thread.start()
+
+    @property
+    def condition(self):
+        return self.__cond
 
     @property
     def url(self):
@@ -27,8 +33,9 @@ class HttpJsonPoster:
             self.__cond.notifyAll()
 
     def request_post(self, data):
+        data_utf8 = data.encode("utf-8")
         with self.__cond:
-            self.__new_data = data.encode("utf-8")
+            self.__new_data = data_utf8
             self.__cond.notifyAll()
 
     def __loop(self):
@@ -37,18 +44,32 @@ class HttpJsonPoster:
                 if self.__new_data is None:
                     self.__cond.wait()
 
-                # if there is not data: overwrite the old data
+                # if there is new data -> overwrite the old data
                 if self.__new_data is not None:
-                    self.__last_data = self.__new_data
+                    self.__data = self.__new_data
                     self.__new_data = None
 
             # send the most recent data
-            if self.__last_data is not None:
+            if self.__data is not None:
                 self.__post()
 
     def __post(self):
-        url = self.__url
-        r = requests.post(url, data=self.__last_data, headers=HttpJsonPoster.__headers)
-        if not r.status_code == 200:
-            msg = "Error sending request:"
-            print(msg, r.status_code, r.reason, url, self.__last_data)
+        with self.__cond:
+            url = self.url
+            timeout = self.timeout
+            data = self.__data
+
+        error_msg = "Error sending request:"
+        try:
+            with requests.post(
+                url,
+                data=data,
+                headers=HttpJsonPoster.__headers,
+                timeout=timeout,
+            ) as r:
+                if not r.status_code == 200:
+                    print(
+                        error_msg, r.status_code, r.reason, url, data, file=sys.stderr
+                    )
+        except requests.RequestException as e:
+            print(error_msg, e, url, data, file=sys.stderr)

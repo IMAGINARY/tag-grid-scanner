@@ -35,13 +35,13 @@ class NotificationManager:
 
                 # if there is not data: overwrite the old data
                 if self.__new_notification is not None:
-                    self.__last_notification = self.__new_notification
+                    self.__notification = self.__new_notification
                     self.__new_notification = None
 
             # send the most recent data
-            if self.__last_notification is not None:
+            if self.__notification is not None:
                 self.__post_notification()
 
     def __post_notification(self):
         for notify in self.notifiers:
-            notify(self.__last_notification)
+            notify(self.__notification)
