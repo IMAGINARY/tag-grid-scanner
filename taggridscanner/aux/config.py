@@ -40,11 +40,6 @@ def extend_validator_with_default(validator_class):
 def load_config(path):
     with open(path, mode="r", encoding="UTF-8") as config_file:
         raw_config = yaml.load(config_file)
-
-        validator = jsonschema.validators.Draft202012Validator
-        validator_with_defaults = extend_validator_with_default(validator)
-        config_validator_with_defaults = validator_with_defaults(config_schema)
-
         config = deepcopy(raw_config)
         config_with_defaults = deepcopy(config)
         config_validator_with_defaults.validate(config_with_defaults)
@@ -56,8 +51,7 @@ def load_config(path):
 
 
 def store_config(raw_config, path):
-    validator = jsonschema.validators.Draft202012Validator
-    validator(raw_config)
+    validator.validate(raw_config)
     with open(path, mode="w", encoding="UTF-8") as config_file:
         yaml.dump(raw_config, config_file)
 
@@ -145,6 +139,7 @@ def set_roi(raw_config, roi_vertices):
         for j in range(0, 4):
             for i in range(0, 2):
                 roi_config[j][i] = float(roi_vertices[j][i])
+    return raw_config
 
 
 def set_gap(raw_config, gap):
@@ -159,6 +154,7 @@ def set_gap(raw_config, gap):
         # copy element-wise to preserve YAML formatting
         for j in range(0, 2):
             gap_config[j] = float(gap[j])
+    return raw_config
 
 
 def set_crop(raw_config, crop):
@@ -173,6 +169,10 @@ def set_crop(raw_config, crop):
         # copy element-wise to preserve YAML formatting
         for j in range(0, 2):
             crop_config[j] = float(crop[j])
+    return raw_config
 
 
 config_schema = get_config_schema()
+validator = jsonschema.validators.Draft202012Validator(config_schema)
+validator_with_defaults = extend_validator_with_default(validator)
+config_validator_with_defaults = validator_with_defaults(config_schema)

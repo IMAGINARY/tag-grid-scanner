@@ -36,8 +36,6 @@ def clamp_points(points, img_shape):
 
 
 def done(raw_config, config_path, rel_corners):
-    print(json.dumps(rel_corners.tolist()), file=sys.stderr)
-
     print(
         "Press ENTER to save ROI to config file: {}".format(config_path),
         file=sys.stderr,
@@ -47,8 +45,8 @@ def done(raw_config, config_path, rel_corners):
 
     if key == 13:  # <ENTER>
         print("Saving ROI to: {}".format(config_path), file=sys.stderr)
-        modified_raw_config = set_roi(raw_config, rel_corners)
-        store_config(modified_raw_config, config_path)
+        set_roi(raw_config, rel_corners)
+        store_config(raw_config, config_path)
     else:
         print("Aborting.", file=sys.stderr)
 
