@@ -35,22 +35,6 @@ def clamp_points(points, img_shape):
         points[idx][1] = max(0, min(points[idx][1], img_shape[0]))
 
 
-def done(raw_config, config_path, rel_corners):
-    print(
-        "Press ENTER to save ROI to config file: {}".format(config_path),
-        file=sys.stderr,
-    )
-    print("Press any other key to abort.", file=sys.stderr)
-    key = cv2.waitKey()
-
-    if key == 13:  # <ENTER>
-        print("Saving ROI to: {}".format(config_path), file=sys.stderr)
-        set_roi(raw_config, rel_corners)
-        store_config(raw_config, config_path)
-    else:
-        print("Aborting.", file=sys.stderr)
-
-
 class ROIWorker(Functor):
     def __init__(self, config_with_defaults):
         super().__init__(lambda: self.work())
@@ -241,6 +225,7 @@ def scan(args):
     producer.start()
     producer.result.wait()
 
+    mode = "edit_roi"
     while True:
         frame_start_ts = time.perf_counter()
 
@@ -307,17 +292,31 @@ def scan(args):
                 pass
             else:
                 auto_hide_timeout.reset()
-                if key == 27:  # <ESC>
-                    print("Aborting.", file=sys.stderr)
-                    sys.exit(1)
-                elif key == 13:  # <ENTER>
-                    if rel_corners is not None:
-                        done(
-                            args["raw-config"],
-                            args["config-path"],
-                            rel_corners,
+                if mode == "edit_roi":
+                    if key == 27:  # <ESC>
+                        print("Aborting.", file=sys.stderr)
+                        sys.exit(1)
+                    elif key == 13:  # <ENTER>
+                        if rel_corners is not None:
+                            print(
+                                "Press ENTER to save ROI to config file: {}".format(
+                                    args["config-path"]
+                                ),
+                                file=sys.stderr,
+                            )
+                            print("Press any other key to abort.", file=sys.stderr)
+                            mode = "store_roi"
+                    roi_worker.key.set(key)
+                elif mode == "store_roi":
+                    if key == 13:  # <ENTER>
+                        print(
+                            "Saving ROI to: {}".format(args["config-path"]),
+                            file=sys.stderr,
                         )
-                        sys.exit(0)
-                roi_worker.key.set(key)
+                        set_roi(args["raw-config"], rel_corners)
+                        store_config(args["raw-config"], args["config-path"])
+                    else:
+                        print("Aborting.", file=sys.stderr)
+                    mode = "edit_roi"
         else:
             time.sleep(frame_time_left)
