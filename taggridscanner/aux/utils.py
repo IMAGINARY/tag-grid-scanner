@@ -53,6 +53,15 @@ def join_tiles(tiles):
     return tiles.swapaxes(1, 2).reshape(shape)
 
 
+def compatible(image1, image2):
+    return (
+        image1 is not None
+        and image2 is not None
+        and image1.shape == image2.shape
+        and image1.dtype == image2.dtype
+    )
+
+
 class Timeout(object):
     def __init__(self, delay):
         self.__delay = delay

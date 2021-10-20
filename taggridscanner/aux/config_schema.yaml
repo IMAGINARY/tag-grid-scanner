@@ -101,6 +101,9 @@ properties:
         default: false
       exposure:
         "$ref": "#/$defs/posnumber"
+      smooth:
+        "$ref": "#/$defs/nonnegnumber"
+        default: 0.0
     default: { }
     anyOf:
       - { required: [ id ] }

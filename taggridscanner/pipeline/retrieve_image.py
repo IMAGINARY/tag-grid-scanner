@@ -3,6 +3,7 @@ import time
 import cv2
 
 from taggridscanner.aux.threading import WorkerThread
+from taggridscanner.aux.utils import compatible
 
 
 class RetrieveImage:
@@ -12,6 +13,7 @@ class RetrieveImage:
         api_preference=cv2.CAP_ANY,
         props=None,
         reconnection_delay=0.5,
+        smooth=0.0,
     ):
         super().__init__()
         if props is None:
@@ -19,6 +21,7 @@ class RetrieveImage:
         self.id_or_filename = id_or_filename
         self.api_preference = api_preference
         self.reconnection_delay = reconnection_delay
+        self.smooth = smooth
         self.props = props
         self.capture = cv2.VideoCapture()
         self.__last_reconnection_ts = float("-inf")
@@ -52,7 +55,17 @@ class RetrieveImage:
                 ret, image = self.capture.read()
 
             if ret:
-                self.__last_image = image
+                if not compatible(self.__last_image, image) or self.smooth == 0.0:
+                    self.__last_image = image
+                else:
+                    cv2.addWeighted(
+                        self.__last_image,
+                        self.smooth,
+                        image,
+                        1.0 - self.smooth,
+                        0.0,
+                        dst=self.__last_image,
+                    )
             return self.__last_image
 
     def reconnect(self):
@@ -113,4 +126,4 @@ class RetrieveImage:
             exposure = camera_config["exposure"]
             props.append((cv2.CAP_PROP_EXPOSURE, exposure))
 
-        return RetrieveImage(source, props=props)
+        return RetrieveImage(source, props=props, smooth=camera_config["smooth"])
