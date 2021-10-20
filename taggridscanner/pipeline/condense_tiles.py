@@ -17,5 +17,5 @@ class CondenseTiles(Functor):
         return cv2.resize(
             image,
             target_size,
-            interpolation=cv2.INTER_LINEAR,
+            interpolation=cv2.INTER_AREA,
         )
