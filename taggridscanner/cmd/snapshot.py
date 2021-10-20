@@ -1,5 +1,6 @@
 import sys
 import cv2
+from taggridscanner.aux.threading import WorkerThread, ThreadSafeContainer
 from taggridscanner.pipeline.retrieve_image import RetrieveImage
 from taggridscanner.pipeline.view_image import ViewImage
 
@@ -9,19 +10,24 @@ def snapshot(args):
     output_filename = args.get("OUTFILE", None)
 
     retrieve_image = RetrieveImage.create_from_config(config_with_defaults)
+    retrieve_image_worker = WorkerThread(retrieve_image)
     view_image = ViewImage("Snapshot")
 
     key = 0
-
+    retrieve_image_worker.start()
+    frame = retrieve_image_worker.result.retrieve()
     while key != 27 and key != ord("q"):
         print(
             "Press SPACE or ENTER to take a snapshot. Press ESC or q to quit.",
             file=sys.stderr,
         )
-        while key != 27 and key != ord("q"):
-            frame = retrieve_image()
-            view_image(frame)
 
+        while key != 27 and key != ord("q"):
+            try:
+                frame = retrieve_image_worker.result.retrieve_nowait()
+                view_image(frame)
+            except ThreadSafeContainer.Empty:
+                pass
             key = cv2.waitKey(1)
             if key == 32 or key == 13:
                 if output_filename is not None:
