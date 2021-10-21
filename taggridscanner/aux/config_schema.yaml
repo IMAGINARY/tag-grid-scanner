@@ -99,8 +99,6 @@ properties:
       flipH:
         type: boolean
         default: false
-      exposure:
-        "$ref": "#/$defs/posnumber"
       smooth:
         "$ref": "#/$defs/nonnegnumber"
         default: 0.0

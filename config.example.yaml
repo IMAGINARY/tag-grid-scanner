@@ -10,7 +10,6 @@ camera:
   rotate: 0
   flipV: false
   flipH: false
-  exposure: 1.0
 dimensions:
   grid: [ 16, 16 ]
   tile: [ 4, 4 ]

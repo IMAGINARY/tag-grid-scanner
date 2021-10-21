@@ -122,8 +122,4 @@ class RetrieveImage:
             fps = camera_config["fps"]
             props.append((cv2.CAP_PROP_FPS, fps))
 
-        if "exposure" in camera_config:
-            exposure = camera_config["exposure"]
-            props.append((cv2.CAP_PROP_EXPOSURE, exposure))
-
         return RetrieveImage(source, props=props, smooth=camera_config["smooth"])
