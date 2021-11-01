@@ -11,6 +11,7 @@ class ViewImage(Functor):
             cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO | cv2.WINDOW_GUI_NORMAL
         )
         self.__title = ""
+        self.__is_visible = False
         self.title = self.__window_name if title is None else title
         self.__last_image_shape = (0, 0)
 
@@ -25,12 +26,15 @@ class ViewImage(Functor):
     @title.setter
     def title(self, title):
         self.__title = title
-        cv2.namedWindow(self.__window_name, self.__window_flags)
-        cv2.setWindowTitle(self.__window_name, title)
+        if self.__is_visible:
+            cv2.namedWindow(self.__window_name, self.__window_flags)
+            cv2.setWindowTitle(self.__window_name, title)
 
     def hide(self):
-        cv2.namedWindow(self.__window_name, self.__window_flags)
-        cv2.destroyWindow(self.__window_name)
+        if self.__is_visible:
+            cv2.namedWindow(self.__window_name, self.__window_flags)
+            cv2.destroyWindow(self.__window_name)
+            self.__is_visible = False
 
     def __call__(self, image):
         cv2.namedWindow(self.__window_name, self.__window_flags)
@@ -39,6 +43,7 @@ class ViewImage(Functor):
             cv2.resizeWindow(self.__window_name, image.shape[1], image.shape[0])
             self.__last_image_shape = image.shape[0:2]
         cv2.imshow(self.__window_name, image)
+        self.__is_visible = True
         return image
 
     def __del__(self):
