@@ -29,6 +29,7 @@ class ViewImage(Functor):
         cv2.setWindowTitle(self.__window_name, title)
 
     def hide(self):
+        cv2.namedWindow(self.__window_name, self.__window_flags)
         cv2.destroyWindow(self.__window_name)
 
     def __call__(self, image):
