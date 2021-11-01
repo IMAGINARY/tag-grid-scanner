@@ -106,6 +106,11 @@ def get_argument_parser():
         help="automatically hide all windows when no key is pressed for the given number of seconds",
     )
     parser_scan.add_argument(
+        "--hide-gui",
+        action="store_true",
+        help="start with hidden windows",
+    )
+    parser_scan.add_argument(
         "--rate-limit",
         type=float,
         default=4,

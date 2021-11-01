@@ -220,6 +220,7 @@ def scan(args):
     auto_hide_timeout = Timeout(args["auto_hide_gui"])
 
     roi_worker = ScanWorker(config_with_defaults)
+    roi_worker.compute_visualization.set(not args["hide_gui"])
     producer = WorkerThread(roi_worker)
     producer.rate_limit = args["rate_limit"]
     producer.start()
