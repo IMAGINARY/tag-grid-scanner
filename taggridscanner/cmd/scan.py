@@ -215,12 +215,13 @@ def scan(args):
 
     newline_detector = NewlineDetector()
     newline_detector.start()
-    print("Press ENTER to hide/show the UI.", file=sys.stderr)
+    if not args["no_gui"]:
+        print("Press ENTER to hide/show the UI.", file=sys.stderr)
 
     auto_hide_timeout = Timeout(args["auto_hide_gui"])
 
     roi_worker = ScanWorker(config_with_defaults)
-    roi_worker.compute_visualization.set(not args["hide_gui"])
+    roi_worker.compute_visualization.set(not args["hide_gui"] and not args["no_gui"])
     producer = WorkerThread(roi_worker)
     producer.rate_limit = args["rate_limit"]
     producer.start()
@@ -262,17 +263,18 @@ def scan(args):
         frame_end_ts = time.perf_counter()
         frame_time_left = max(0.0, 1.0 / max_fps - (frame_end_ts - frame_start_ts))
 
-        try:
-            newline_detector.result.retrieve_nowait()
-            auto_hide_timeout.reset()
-            with roi_worker.compute_visualization.condition:
-                try:
-                    show_ui = not roi_worker.compute_visualization.get_nowait()
-                except ThreadSafeContainer.Empty:
-                    show_ui = False
-                roi_worker.compute_visualization.set(show_ui)
-        except ThreadSafeContainer.Empty:
-            pass
+        if not args["no_gui"]:
+            try:
+                newline_detector.result.retrieve_nowait()
+                auto_hide_timeout.reset()
+                with roi_worker.compute_visualization.condition:
+                    try:
+                        show_ui = not roi_worker.compute_visualization.get_nowait()
+                    except ThreadSafeContainer.Empty:
+                        show_ui = False
+                    roi_worker.compute_visualization.set(show_ui)
+            except ThreadSafeContainer.Empty:
+                pass
 
         if auto_hide_timeout.is_up():
             auto_hide_timeout.reset()

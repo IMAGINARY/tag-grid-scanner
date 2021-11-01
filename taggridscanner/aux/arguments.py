@@ -111,6 +111,11 @@ def get_argument_parser():
         help="start with hidden windows",
     )
     parser_scan.add_argument(
+        "--no-gui",
+        action="store_true",
+        help="disable all windows for headless operation",
+    )
+    parser_scan.add_argument(
         "--rate-limit",
         type=float,
         default=4,
