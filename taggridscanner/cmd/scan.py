@@ -217,7 +217,7 @@ def scan(args):
     newline_detector.start()
     print("Press ENTER to hide/show the UI.", file=sys.stderr)
 
-    auto_hide_timeout = Timeout(args["auto_hide"])
+    auto_hide_timeout = Timeout(args["auto_hide_gui"])
 
     roi_worker = ScanWorker(config_with_defaults)
     producer = WorkerThread(roi_worker)

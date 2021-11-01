@@ -99,7 +99,7 @@ def get_argument_parser():
     )
     parser_scan.set_defaults(func=scan)
     parser_scan.add_argument(
-        "--auto-hide",
+        "--auto-hide-gui",
         type=float,
         default=float("inf"),
         metavar="SECONDS",
