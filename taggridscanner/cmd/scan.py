@@ -192,6 +192,8 @@ class ScanWorker(Functor):
 
 def scan(args):
     config_with_defaults = args["config-with-defaults"]
+    if args["ignore_scale"]:
+        config_with_defaults["camera"]["scale"] = [1.0, 1.0]
 
     view_roi_editor = ViewImage("select roi")
     view_extracted_roi = ViewImage("extracted roi")

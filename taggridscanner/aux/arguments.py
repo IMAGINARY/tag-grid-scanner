@@ -122,6 +122,11 @@ def get_argument_parser():
         metavar="FPS",
         help="limit detection rate to save resources",
     )
+    parser_scan.add_argument(
+        "--ignore-scale",
+        action="store_true",
+        help="ignore the scale config option, e.g. to improve ROI selection",
+    )
 
     parser_snapshot = sub_parsers.add_parser(
         "snapshot",
