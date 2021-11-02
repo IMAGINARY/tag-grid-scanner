@@ -13,6 +13,7 @@ class RetrieveImage:
         api_preference=cv2.CAP_ANY,
         props=None,
         reconnection_delay=0.5,
+        scale=1.0,
         smooth=0.0,
     ):
         super().__init__()
@@ -21,6 +22,7 @@ class RetrieveImage:
         self.id_or_filename = id_or_filename
         self.api_preference = api_preference
         self.reconnection_delay = reconnection_delay
+        self.prescale = create_prescaler(scale)
         self.smooth = smooth
         self.props = props
         self.capture = cv2.VideoCapture()
@@ -34,6 +36,10 @@ class RetrieveImage:
     def rlock(self):
         return self.__rlock
 
+    def __read_from_capture(self):
+        ret, image = self.capture.read()
+        return ret, self.prescale(image) if image is not None else image
+
     def read(self):
         fps = self.capture.get(cv2.CAP_PROP_FPS)
         self.__worker.rate_limit = 60.0 if fps == 0.0 else fps
@@ -41,18 +47,18 @@ class RetrieveImage:
 
     def __read_and_block_when_disconnected(self):
         with self.rlock:
-            ret, image = self.capture.read()
+            ret, image = self.__read_from_capture()
             while not ret:
                 self.reconnect()
-                ret, image = self.capture.read()
+                ret, image = self.__read_from_capture()
             return image
 
     def __read(self):
         with self.rlock:
-            ret, image = self.capture.read()
+            ret, image = self.__read_from_capture()
             if not ret:
                 self.reconnect()
-                ret, image = self.capture.read()
+                ret, image = self.__read_from_capture()
 
             if ret:
                 if not compatible(self.__last_image, image) or self.smooth == 0.0:
@@ -122,4 +128,27 @@ class RetrieveImage:
             fps = camera_config["fps"]
             props.append((cv2.CAP_PROP_FPS, fps))
 
-        return RetrieveImage(source, props=props, smooth=camera_config["smooth"])
+        scale = camera_config["scale"]
+
+        return RetrieveImage(
+            source, props=props, scale=scale, smooth=camera_config["smooth"]
+        )
+
+
+def create_prescaler(scale):
+    if scale == [1.0, 1.0]:
+        return lambda img: img  # noop
+    else:
+
+        def prescaler(img):
+            prescaled_shape = (
+                round(img.shape[1] * scale[1]),
+                round(img.shape[0] * scale[0]),
+            )
+            return cv2.resize(
+                img,
+                prescaled_shape,
+                interpolation=cv2.INTER_AREA,
+            )
+
+        return prescaler

@@ -6,11 +6,9 @@ from taggridscanner.aux.utils import Functor
 
 class Preprocess(Functor):
     def __init__(
-        self, scale, rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
+        self, rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
     ):
         super().__init__()
-
-        self.prescale = create_prescaler(scale)
 
         self.correct_distortion = create_distortion_corrector(
             rel_camera_matrix, distortion_coefficients
@@ -18,7 +16,7 @@ class Preprocess(Functor):
         self.linear_transform = create_linear_transformer(rotate, flip_h, flip_v)
 
     def __call__(self, image):
-        return self.linear_transform(self.correct_distortion(self.prescale(image)))
+        return self.linear_transform(self.correct_distortion(image))
 
     @staticmethod
     def create_from_config(config):
@@ -29,14 +27,13 @@ class Preprocess(Functor):
             np.array(calibration_config["matrix"]),
             np.array(calibration_config["distortion"]),
         )
-        scale, rotate, flip_h, flip_v = (
-            camera_config["scale"],
+        rotate, flip_h, flip_v = (
             camera_config["rotate"],
             camera_config["flipH"],
             camera_config["flipV"],
         )
         return Preprocess(
-            scale, rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
+            rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
         )
 
 
@@ -59,25 +56,6 @@ def get_flip_code(flip_h, flip_v):
         return -1
     else:
         return None
-
-
-def create_prescaler(scale):
-    if scale == [1.0, 1.0]:
-        return lambda img: img  # noop
-    else:
-
-        def prescaler(img):
-            prescaled_shape = (
-                round(img.shape[1] * scale[1]),
-                round(img.shape[0] * scale[0]),
-            )
-            return cv2.resize(
-                img,
-                prescaled_shape,
-                interpolation=cv2.INTER_AREA,
-            )
-
-        return prescaler
 
 
 def create_linear_transformer(rotate, flip_h, flip_v):
