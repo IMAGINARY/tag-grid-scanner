@@ -215,8 +215,8 @@ def scan(args):
     has_window = False
 
     newline_detector = NewlineDetector()
-    newline_detector.start()
     if not args["no_gui"]:
+        newline_detector.start()
         print("Press ENTER to hide/show the UI.", file=sys.stderr)
 
     auto_hide_timeout = Timeout(args["auto_hide_gui"])
