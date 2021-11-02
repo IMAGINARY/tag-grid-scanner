@@ -90,6 +90,11 @@ properties:
         default: { }
       filename:
         type: string
+      scale:
+        oneOf:
+          - "$ref": "#/$defs/nonnegnumber"
+          - "$ref": "#/$defs/nonnegvec2"
+        default: 1.0
       rotate:
         "$ref": "#/$defs/rotation"
         default: 0

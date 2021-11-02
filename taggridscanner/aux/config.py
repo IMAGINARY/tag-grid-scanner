@@ -63,6 +63,16 @@ def preprocess_config(config, config_path):
     if "size" in config["camera"]:
         config["camera"]["size"] = config["camera"]["size"][::-1]
 
+    if "scale" in config["camera"]:
+        if isinstance(config["camera"]["scale"], list):
+            config["camera"]["scale"] = config["camera"]["scale"][::-1]
+        else:
+            # same scale factor for both dimensions
+            config["camera"]["scale"] = [
+                config["camera"]["scale"],
+                config["camera"]["scale"],
+            ]
+
     if "filename" in config["camera"]:
         filename_path = pathlib.Path(config_dir, config["camera"]["filename"]).resolve()
         config["camera"]["filename"] = str(filename_path)

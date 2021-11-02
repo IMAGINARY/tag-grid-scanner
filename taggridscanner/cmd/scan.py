@@ -51,7 +51,7 @@ class ScanWorker(Functor):
         self.vertices = rel_corners_to_abs_corners(rel_roi_vertices, (self.h, self.w))
 
         self.draw_roi_editor = DrawROIEditor(
-            vertices=self.vertices, active_vertex=self.idx
+            rel_vertices=self.vertices, active_vertex=self.idx
         )
 
         self.extract_roi = ExtractROI(
@@ -136,15 +136,16 @@ class ScanWorker(Functor):
             pass
 
         clamp_points(self.vertices, (self.h, self.w))
-        self.draw_roi_editor.active_vertex = self.idx
-        self.draw_roi_editor.vertices = self.vertices
+
+        rel_corners = abs_corners_to_rel_corners(self.vertices, (self.h, self.w))
+
+        self.draw_roi_editor.active_vertex_idx = self.idx
+        self.draw_roi_editor.rel_vertices = rel_corners
 
         src = self.retrieve_image()
         preprocessed = self.preprocess(src)
 
-        self.extract_roi.rel_corners = abs_corners_to_rel_corners(
-            self.vertices, (self.h, self.w)
-        )
+        self.extract_roi.rel_corners = rel_corners
         extracted_roi = self.extract_roi(preprocessed)
         gaps_removed = self.remove_gaps(extracted_roi)
         cropped = self.crop_tile_pixels(gaps_removed)
@@ -155,8 +156,6 @@ class ScanWorker(Functor):
         if not np.array_equal(self.last_tag_data, tag_data):
             self.last_tag_data = tag_data
             self.transform_and_notify(tag_data)
-
-        rel_corners = abs_corners_to_rel_corners(self.vertices, (self.h, self.w))
 
         try:
             if self.compute_visualization.get_nowait():
