@@ -92,6 +92,12 @@ properties:
           The given size must match one of the supported resolutions of the camera.
           The result of querying an unsupported size is undefined.
         "$ref": "#/$defs/posivec2"
+      fps:
+        title: The number of frames per second of the requested camera video stream.
+        description: >
+          The given number must match one of the supported number of fps of the camera.
+          The result of querying an unsupported fps is undefined.
+        "$ref": "#/$defs/posinteger"
       fourcc:
         title: The 4-digit code of the requested camera video stream.
         description: >
