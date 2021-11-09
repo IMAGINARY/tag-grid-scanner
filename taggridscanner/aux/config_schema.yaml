@@ -20,6 +20,11 @@ type: object
     title: A positive floating point number, i.e. a floating point number > 0.0.
     type: number
     exclusiveMinimum: 0.0
+  number01:
+    title: A floating point number in [ 0, 1 ].
+    type: number
+    minimum: 0.0
+    maximum: 1.0
   posivec2:
     title: A 2D vector of positive integers.
     type: array
@@ -41,6 +46,13 @@ type: object
     maxItems: 2
     items:
       "$ref": "#/$defs/posnumber"
+  number01vec2:
+    title: A 2D vector of floating point numbers in [ 0, 1 ].
+    type: array
+    minItems: 2
+    maxItems: 2
+    items:
+      "$ref": "#/$defs/number01"
   nonnegvec4:
     title: A 4D vector of positive floating point numbers.
     type: array
@@ -178,7 +190,7 @@ properties:
           due to insufficient lighting. Values closer to one will increase detection latency. It is important to
           consider this option in the light of the camera's fps, since a constant smooth value will result in different
           latencies for different fps.
-        "$ref": "#/$defs/nonnegnumber"
+        "$ref": "#/$defs/number01"
         default: 0.0
     default: { }
     anyOf:
@@ -206,7 +218,7 @@ properties:
       gap:
         title: Size of the gaps in between tags.
         description: The gap size is relative to the image size, i.e. each value should be in [ 0, 1 ].
-        "$ref": "#/$defs/nonnegvec2"
+        "$ref": "#/$defs/number01vec2"
         default: [ 0, 0 ]
       crop:
         title: Keep this fraction of the center part of each tile's pixel.
@@ -216,8 +228,8 @@ properties:
           To attenuate this problem, each tag's pixels can be cropped such that only their center part is used for
           identifying the pixels color.
         oneOf:
-          - "$ref": "#/$defs/nonnegnumber"
-          - "$ref": "#/$defs/nonnegvec2"
+          - "$ref": "#/$defs/number01"
+          - "$ref": "#/$defs/number01vec2"
         default: 0.75
     required: [ grid, tile ]
     default: { }
