@@ -1,32 +1,38 @@
 ---
 "$schema": https://json-schema.org/draft/2020-12/schema
-title: Product
-description: Detector config file schema
+title: Config file documentation
+description: Config file schema definition for the `tag-grid-scanner`.
 type: object
 "$defs":
   nonneginteger:
     title: A non-negative integer, i.e. an integer >= 0.
+    description: A non-negative integer, i.e. an integer >= 0.
     type: integer
     minimum: 0
   posinteger:
     title: A positive integer, i.e. it an integer > 0.
+    description: A positive integer, i.e. it an integer > 0.
     type: integer
     minimum: 1
   nonnegnumber:
     title: A non-negative floating point numner, i.e. a floating point number >= 0.0.
+    description: A non-negative floating point numner, i.e. a floating point number >= 0.0.
     type: number
     minimum: 0.0
   posnumber:
     title: A positive floating point number, i.e. a floating point number > 0.0.
+    description: A positive floating point number, i.e. a floating point number > 0.0.
     type: number
     exclusiveMinimum: 0.0
   number01:
-    title: A floating point number in [ 0, 1 ].
+    title: A floating point number in `[0, 1]`.
+    description: A floating point number in `[0, 1]`.
     type: number
     minimum: 0.0
     maximum: 1.0
   posivec2:
     title: A 2D vector of positive integers.
+    description: A 2D vector of positive integers.
     type: array
     minItems: 2
     maxItems: 2
@@ -34,6 +40,7 @@ type: object
       "$ref": "#/$defs/posinteger"
   nonnegvec2:
     title: A 2D vector of non-negative floating point numbers.
+    description: A 2D vector of non-negative floating point numbers.
     type: array
     minItems: 2
     maxItems: 2
@@ -41,13 +48,15 @@ type: object
       "$ref": "#/$defs/nonnegnumber"
   posvec2:
     title: A 2D vector of positive floating point numbers.
+    description: A 2D vector of positive floating point numbers.
     type: array
     minItems: 2
     maxItems: 2
     items:
       "$ref": "#/$defs/posnumber"
   number01vec2:
-    title: A 2D vector of floating point numbers in [ 0, 1 ].
+    title: A 2D vector of floating point numbers in `[0, 1]`.
+    description: A 2D vector of floating point numbers in `[0, 1]`.
     type: array
     minItems: 2
     maxItems: 2
@@ -55,6 +64,7 @@ type: object
       "$ref": "#/$defs/number01"
   nonnegvec4:
     title: A 4D vector of positive floating point numbers.
+    description: A 4D vector of positive floating point numbers.
     type: array
     minItems: 4
     maxItems: 4
@@ -62,6 +72,7 @@ type: object
       "$ref": "#/$defs/nonnegnumber"
   matrix3x3:
     title: A 3x3 matrix of floating point numbers.
+    description: A 3x3 matrix of floating point numbers.
     type: array
     minItems: 3
     maxItems: 3
@@ -73,6 +84,7 @@ type: object
         type: number
   matrix4x2:
     title: A 4x2 matrix of floating point numbers.
+    description: A 4x2 matrix of floating point numbers.
     type: array
     minItems: 4
     maxItems: 4
@@ -83,50 +95,70 @@ type: object
       items:
         type: number
   rotation:
-    title: One of the rotation angles [0, 90, 180, 270] (degrees).
+    title: One of the rotation angles `[0, 90, 180, 270]` (degrees).
+    description: One of the rotation angles `[0, 90, 180, 270]` (degrees).
     type: integer
     enum: [ 0, 90, 180, 270 ]
 properties:
   camera:
     title: The configuration of the camera.
+    description: The configuration of the camera.
     type: object
     properties:
       id:
         title: The index of the camera.
         description: >
-          The index of the camera is system dependent and different devices might be associated with the same index
-          during the runtime of the program. The index and how it is changing is highly system-dependent, but should
-          be safely usable if there is only one camera connected to the system.
+          The index of the camera.
+
+
+          This is system dependent and different devices might be associated with the same
+          index during the runtime of the program. The index and how it is changing is highly system-dependent, but
+          should be safely usable if there is only one camera connected to the system.
         "$ref": "#/$defs/nonneginteger"
       size:
         title: The size of the requested camera video stream.
         description: >
-          The given size must match one of the supported resolutions of the camera.
-          The result of querying an unsupported size is undefined.
+          The size of the requested camera video stream.
+
+
+          The given size must match one of the supported resolutions of
+          the camera. The result of querying an unsupported size is undefined.
         "$ref": "#/$defs/posivec2"
       fps:
         title: The number of frames per second of the requested camera video stream.
         description: >
+          The number of frames per second of the requested camera video stream.
+
+
           The given number must match one of the supported number of fps of the camera.
           The result of querying an unsupported fps is undefined.
         "$ref": "#/$defs/posinteger"
       fourcc:
         title: The 4-digit code of the requested camera video stream.
         description: >
+          The 4-digit code of the requested camera video stream.
+
+
           A camera might support different stream formats.
           Selecting a specific format might affect image quality and performance.
           The most common ones for webcams are 'MJPG' and 'H264'.
-          See https://www.fourcc.org/codecs.php for a full list.
+          See also the [list of known FOURCCs](https://www.fourcc.org/codecs.php).
         type: string
+        minLength: 4
+        maxLength: 4
       calibration:
         title: Calibration data to remove distortion from the image.
-        description: >
+        description:
+          Calibration data to remove distortion from the image.
+
+
           Camera lenses are not perfect. Instead, they always introduce some kind of distortion to the image captured
           by the camera sensor. If the cameras corrects the distortion internally, the calibration data can be ignored,
           but usually, even the internal correction is not good enough to have perfectly map straight lines in the
           scene to perfectly straight lines in the camera image. The objects in this section can be generated using
           the `calibrate` command of the `tag-grid-scanner`.
-          See also https://docs.opencv.org/4.5.4/d9/d0c/group__calib3d.html.
+          See also
+          [OpenCV's documentation on camera calibration](https://docs.opencv.org/4.5.4/d9/d0c/group__calib3d.html).
         type: object
         properties:
           matrix:
@@ -144,6 +176,9 @@ properties:
       filename:
         title: The name of a video file, image or camera device node.
         description: >
+          The name of a video file, image or camera device node.
+
+
           Use this instead of the camera index. It allows to read image data from video files, images or from
           camera device nodes on certain operating systems such as Linux. The latter is very useful to make sure the
           correct camera is used in multi-camera systems, since the camera index may change arbitrarily. It is common
@@ -153,6 +188,9 @@ properties:
       scale:
         title: Scale factor applied to the camera image.
         description: >
+          Scale factor applied to the camera image.
+
+
           If the camera only provides a fixed resolution or lower than maximum resolution just crop the image instead
           of scaling it, this scale factor can be used. Lower values will improve the speed of the computation.
           However, values too low will result in tag detection errors.
@@ -163,27 +201,40 @@ properties:
       rotate:
         title: Angle of rotation applied to the camera image.
         description: >
+          Angle of rotation applied to the camera image.
+
+
           This rotation is merely to assist debugging since the rotation can also be applied to the output at
-          lower computational cost. It can also be useful during ROI selection if the camera is mounted at an angle.
+          lower computational cost via the [`notify` section](#notify). It can also be useful during ROI selection if
+          the camera is mounted at an angle.
         "$ref": "#/$defs/rotation"
         default: 0
       flipV:
         title: Whether to flip the camera image vertically.
         description: >
+          Whether to flip the camera image vertically.
+
+
           Flipping the image needs to be enabled if the camera is seeing the ROI via a mirror, which results in all tags
-          being flipped, too. Flipping the grid (but not the tags) can be reverted in the `notify`section.
+          being flipped, too. Flipping the grid (but not the tags) can be reverted in the [`notify` section](#notify).
         type: boolean
         default: false
       flipH:
         title: Whether to flip the camera image horizontally.
         description: >
+          Whether to flip the camera image horizontally.
+
+
           Flipping the image needs to be enabled if the camera is seeing the ROI via a mirror, which results in all tags
-          being flipped, too. Flipping the grid (but not the tags) can be reverted in the `notify`section.
+          being flipped, too. Flipping the grid (but not the tags) can be reverted in the [`notify` section](#notify).
         type: boolean
         default: false
       smooth:
         title: Blend the current image with previous images.
         description: >
+          Blend the current image with previous images.
+
+
           The current image will be blended with the previous image using the smooth value as the interpolation
           parameter. At 0.0, the current image will be used exclusively, at 1.0, the previous will be used exclusively
           (which makes no sense). Values of 0.5 to 0.75 worked reasonably well for reducing noise in the input images
@@ -198,31 +249,50 @@ properties:
       - { required: [ filename ] }
   dimensions:
     title: The configuration of the tag grid.
+    description: The configuration of the tag grid.
     type: object
     properties:
       grid:
         title: The size of the tag grid.
-        description: How many tags can be placed in each direction?
+        description: >
+          The size of the tag grid.
+
+
+          How many tags can be placed in each direction?
         "$ref": "#/$defs/posivec2"
       tile:
         title: The size of each tag.
-        description: How many pixels does each tag have in each direction?
+        description: >
+          The size of each tag.
+
+
+          How many pixels does each tag have in each direction?
         "$ref": "#/$defs/posivec2"
       roi:
         title: The region of interest for the scanner to look for tags.
         description: >
+          The region of interest for the scanner to look for tags.
+
+
           Provide the vertices of a quadrilateral containing the tag grid in the image. The vertices are relative to the
-          size of the image, i.e. each value should be in [ 0, 1 ].
+          size of the image, i.e. each value should be in `[0, 1]`.
         "$ref": "#/$defs/matrix4x2"
         default: [ [ 0, 0 ], [ 1, 0 ], [ 1, 1 ], [ 0, 1 ] ]
       gap:
         title: Size of the gaps in between tags.
-        description: The gap size is relative to the image size, i.e. each value should be in [ 0, 1 ].
+        description: >
+          Size of the gaps in between tags.
+
+
+          The gap size is relative to the image size, i.e. each value should be in `[0, 1]`.
         "$ref": "#/$defs/number01vec2"
         default: [ 0, 0 ]
       crop:
         title: Keep this fraction of the center part of each tile's pixel.
         description: >
+          Keep this fraction of the center part of each tile's pixel.
+
+
           In most cases, the tag pixels are not perfectly aligned with the grid in the image. This is usually due to
           imperfection in the camera lens, calibration or selection of the region of interest.
           To attenuate this problem, each tag's pixels can be cropped such that only their center part is used for
@@ -236,6 +306,9 @@ properties:
   tags:
     title: The tags to be detected and their values.
     description: >
+      The tags to be detected and their values.
+
+
       Each tag is represented as a sequence of 1s (white) and 0s (black), written as a single string containing all the
       pixels line by line (top-left to bottom-right). Each tag has a value assigned that is used for notification
       purposes. The value is just an ID in most cases, but can be an arbitrary JSON object.
@@ -250,56 +323,72 @@ properties:
       unknown: -1
   notify:
     title: Define how the scanner should notify about detected tags.
+    description: Define how the scanner should notify about detected tags.
     type: object
     properties:
       template:
         title: The JSON template to which the tag data will be added.
         description: >
+          The JSON template to which the tag data will be added.
+
+
           When the scanner outputs a notification, it will use this object as a template and assign the tag
-          data to the JSON pointer defined by the `assignTo` option.
+          data to the JSON pointer defined by the [`assignTo` option](#notify_assignTo).
         default: [ ]
       assignTo:
-        title: JSON pointer into the `template` option for assigning the tag data during notification.
+        title: JSON pointer into the [`template` option](#notify_template) for assigning the tag data during notification.
         description: >
-          When the scanner outputs a notification, it will copy the object provided via the `template` option and assign
-          the tag data to the property defined by this JSON pointer. See https://datatracker.ietf.org/doc/html/rfc6901
-          for the definition of the JSON pointer format.
+          JSON pointer into the [`template` option](#notify_template) for assigning the tag data during notification.
+
+
+          When the scanner outputs a notification, it will copy the object provided via the
+          [`template` option](#notify_template) and assign the tag data to the property defined by this JSON pointer.
+          See also the [definition of the JSON pointer format](https://datatracker.ietf.org/doc/html/rfc6901).
         type: string
         format: json-pointer
         default: ""
       rotate:
         title: Rotate the grid by the given number of degrees.
+        description: Rotate the grid by the given number of degrees.
         "$ref": "#/$defs/rotation"
         default: 0
       flipV:
         title: Flip the grid vertically.
+        description: Flip the grid vertically.
         type: boolean
         default: false
       flipH:
         title: Flip the grid horizontally.
+        description: Flip the grid horizontally.
         type: boolean
         default: false
       stdout:
         title: Output the notification to the standard output stream.
+        description: Output the notification to the standard output stream.
         type: boolean
         default: true
       stderr:
         title: Output the notification to the standard error stream.
+        description: Output the notification to the standard error stream.
         type: boolean
         default: false
       remote:
         title: Send the notification to a remote host via HTTP.
+        description: Send the notification to a remote host via HTTP.
         type: boolean
         default: false
       url:
-        title: Send the notification to this URL (HTTP only), when `remote` is enabled.
+        title: Send the notification to this URL (HTTP only), when [`remote`](#notify_remote) is enabled.
+        description: Send the notification to this URL (HTTP only), when [`remote`](#notify_remote) is enabled.
         type: string
       repeat:
         title: Repeat the notification even though the detected tags did not changed.
+        description: Repeat the notification even though the detected tags did not changed.
         type: boolean
         default: false
       interval:
-        title: Interval at which notification are repeated in seconds, when `repeat` is enabled.
+        title: Interval at which notification are repeated in seconds, when [`repeat`](#notify_repeat) is enabled.
+        description: Interval at which notification are repeated in seconds, when [`repeat`](#notify_repeat) is enabled.
         "$ref": "#/$defs/posinteger"
     default: { }
     allOf:
