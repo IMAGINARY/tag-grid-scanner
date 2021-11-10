@@ -14,6 +14,7 @@ wrapt = "*"
 
 [dev-packages]
 black = "*"
+json-schema-for-humans = "*"
 
 [requires]
 python_version = "3.9"
@@ -23,3 +24,4 @@ allow_prereleases = true
 
 [scripts]
 tag-grid-scanner = "python runner.py"
+generate-schema-doc = "generate-schema-doc --config-file json-schema-for-humans.yaml  taggridscanner/aux/config_schema.yaml doc/"
