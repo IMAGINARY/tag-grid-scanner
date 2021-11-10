@@ -34,11 +34,13 @@ def add_config_argument(parser):
 
 def get_argument_parser():
     parser = argparse.ArgumentParser(prog="tag-grid-scanner")
-    sub_parsers = parser.add_subparsers(help="sub-command help", required=True)
+    sub_parsers = parser.add_subparsers(help="run the given command", required=True)
 
+    # parser for 'calibrate' command
     parser_calibrate = sub_parsers.add_parser(
         "calibrate",
-        help="calibrate command help",
+        help="compute the camera matrix and distortion coefficients for a specific combination of camera and lens "
+        "(given a fixed focal length and focus)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser_calibrate.set_defaults(func=calibrate)
@@ -85,13 +87,15 @@ def get_argument_parser():
         help="do not show the calibration pattern",
     )
 
+    # parser for 'display' command
     parser_display = sub_parsers.add_parser(
         "display",
-        help="display command help",
+        help="display random grids of random tags (for assisting development)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser_display.set_defaults(func=display)
 
+    # parser for 'scan' command
     parser_scan = sub_parsers.add_parser(
         "scan",
         help="launch ROI editor, detect tags and notify",
@@ -128,9 +132,10 @@ def get_argument_parser():
         help="ignore the scale config option, e.g. to improve ROI selection",
     )
 
+    # parser for 'snapshot' command
     parser_snapshot = sub_parsers.add_parser(
         "snapshot",
-        help="snapshot command help",
+        help="take a snapshot image (for assisting development)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser_snapshot.set_defaults(func=snapshot)
