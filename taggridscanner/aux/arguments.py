@@ -138,12 +138,18 @@ def get_argument_parser():
         help="take a snapshot image (for assisting development)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser_snapshot.set_defaults(func=snapshot)
     parser_snapshot.add_argument(
         "--headless",
         action="store_true",
         help="do not show the video stream",
     )
-    parser_snapshot.set_defaults(func=snapshot)
+    parser_snapshot.add_argument(
+        "--wait",
+        type=float,
+        metavar="WAIT_SEC",
+        help="wait for the given number of seconds, take a snapshot and exit",
+    )
     parser_snapshot.add_argument(
         "OUTFILE", nargs="?", help="file to store the snapshot"
     )
