@@ -10,6 +10,7 @@ def snapshot(args):
     output_filename = args.get("OUTFILE", None)
 
     retrieve_image = RetrieveImage.create_from_config(config_with_defaults)
+    retrieve_image.scale = (1.0, 1.0)
     retrieve_image_worker = WorkerThread(retrieve_image)
     view_image = ViewImage("Snapshot")
 

@@ -13,7 +13,7 @@ class RetrieveImage:
         api_preference=cv2.CAP_ANY,
         props=None,
         reconnection_delay=0.5,
-        scale=1.0,
+        scale=(1.0, 1.0),
         smooth=0.0,
     ):
         super().__init__()
@@ -22,7 +22,9 @@ class RetrieveImage:
         self.id_or_filename = id_or_filename
         self.api_preference = api_preference
         self.reconnection_delay = reconnection_delay
-        self.prescale = create_prescaler(scale)
+        self.__scale = None
+        self.__prescale = None
+        self.scale = scale  # this also initializes the prescaler
         self.smooth = smooth
         self.props = props
         self.capture = cv2.VideoCapture()
@@ -38,7 +40,7 @@ class RetrieveImage:
 
     def __read_from_capture(self):
         ret, image = self.capture.read()
-        return ret, self.prescale(image) if image is not None else image
+        return ret, self.__prescale(image) if image is not None else image
 
     def read(self):
         fps = self.capture.get(cv2.CAP_PROP_FPS)
@@ -98,6 +100,16 @@ class RetrieveImage:
             w = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
             h = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
             return (h, w)
+
+    @property
+    def scale(self):
+        return self.__scale
+
+    @scale.setter
+    def scale(self, scale):
+        assert len(scale) >= 2
+        self.__scale = scale
+        self.__prescale = create_prescaler(scale)
 
     def __del(self):
         with self.rlock:
