@@ -4,17 +4,20 @@ from time import sleep
 from taggridscanner.aux.newline_detector import NewlineDetector
 from taggridscanner.aux.threading import WorkerThread, ThreadSafeContainer
 from taggridscanner.aux.utils import Timeout
+from taggridscanner.pipeline.draw_roi import DrawROI
+from taggridscanner.pipeline.noop import Noop
+from taggridscanner.pipeline.preprocess import Preprocess
 from taggridscanner.pipeline.retrieve_image import RetrieveImage
 from taggridscanner.pipeline.view_image import ViewImage
 
 
-def with_ui(args, retrieve_image_worker, output_filename):
+def with_ui(retrieve_image_worker, modify_image, wait, output_filename):
     frame = retrieve_image_worker.result.retrieve()
     view_image = ViewImage("Snapshot")
 
-    if args["wait"] is not None:
-        auto_snap_timeout = Timeout(args["wait"])
-        print("Will take a snapshot after {}s".format(args["wait"]), flush=True)
+    if wait is not None:
+        auto_snap_timeout = Timeout(wait)
+        print("Will take a snapshot after {}s".format(wait), flush=True)
     else:
         auto_snap_timeout = Timeout(float("inf"))
 
@@ -27,7 +30,7 @@ def with_ui(args, retrieve_image_worker, output_filename):
 
         while key != 27 and key != ord("q"):
             try:
-                frame = retrieve_image_worker.result.retrieve_nowait()
+                frame = modify_image(retrieve_image_worker.result.retrieve_nowait())
                 view_image(frame)
             except ThreadSafeContainer.Empty:
                 pass
@@ -53,15 +56,15 @@ def with_ui(args, retrieve_image_worker, output_filename):
                 break
 
 
-def headless(args, retrieve_image_worker, output_filename):
+def headless(retrieve_image_worker, modify_image, wait, output_filename):
     newline_detector = NewlineDetector()
     newline_detector.start()
 
-    if args["wait"] is not None:
-        print("Waiting {}s ...".format(args["wait"]), end="", flush=True)
-        sleep(args["wait"])
+    if wait is not None:
+        print("Waiting {}s ... ".format(wait), end="", flush=True)
+        sleep(wait)
         print("done", flush=True)
-        frame = retrieve_image_worker.result.retrieve()
+        frame = modify_image(retrieve_image_worker.result.retrieve())
         cv2.imwrite(output_filename, frame)
     else:
         while True:
@@ -85,7 +88,13 @@ def snapshot(args):
 
     retrieve_image_worker.start()
 
+    preprocess = Preprocess.create_from_config(config_with_defaults)
+    roi = config_with_defaults["dimensions"]["roi"]
+    draw_roi = DrawROI(roi)
+    modify_image = (preprocess | draw_roi) if args["roi"] else Noop()
+    wait = args["wait"]
+
     if args["headless"]:
-        headless(args, retrieve_image_worker, output_filename)
+        headless(retrieve_image_worker, modify_image, wait, output_filename)
     else:
-        with_ui(args, retrieve_image_worker, output_filename)
+        with_ui(retrieve_image_worker, modify_image, wait, output_filename)

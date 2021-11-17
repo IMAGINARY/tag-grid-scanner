@@ -151,6 +151,11 @@ def get_argument_parser():
         help="wait for the given number of seconds, take a snapshot and exit",
     )
     parser_snapshot.add_argument(
+        "--roi",
+        action="store_true",
+        help="preprocess the image and draw the region of interest",
+    )
+    parser_snapshot.add_argument(
         "OUTFILE", nargs="?", help="file to store the snapshot"
     )
 
