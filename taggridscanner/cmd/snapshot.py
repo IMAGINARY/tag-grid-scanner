@@ -2,7 +2,7 @@ import sys
 import cv2
 from time import sleep
 from taggridscanner.aux.newline_detector import NewlineDetector
-from taggridscanner.aux.threading import WorkerThread, ThreadSafeContainer
+from taggridscanner.aux.threading import WorkerThreadWithResult, ThreadSafeContainer
 from taggridscanner.aux.utils import Timeout
 from taggridscanner.pipeline.draw_roi import DrawROI
 from taggridscanner.pipeline.noop import Noop
@@ -84,7 +84,7 @@ def snapshot(args):
 
     retrieve_image = RetrieveImage.create_from_config(config_with_defaults)
     retrieve_image.scale = (1.0, 1.0)
-    retrieve_image_worker = WorkerThread(retrieve_image)
+    retrieve_image_worker = WorkerThreadWithResult(retrieve_image)
 
     retrieve_image_worker.start()
 

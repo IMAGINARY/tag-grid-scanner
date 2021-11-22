@@ -8,6 +8,29 @@ class SynchronizedObjectProxy(ObjectProxy):
     pass
 
 
+class ThreadSafeValue(object):
+    def __init__(self, initial_value):
+        super().__init__()
+        self.__value = initial_value
+        self.__condition = threading.Condition()
+
+    @property
+    def condition(self):
+        return self.__condition
+
+    def get(self):
+        with self.__condition:
+            return self.__value
+
+    def get_nowait(self):
+        return self.__value
+
+    def set(self, value):
+        with self.__condition:
+            self.__value = value
+            self.__condition.notify()
+
+
 class ThreadSafeContainer(object):
     class Empty(Exception):
         def __init__(self):
@@ -80,16 +103,11 @@ class WorkerThread(object):
     def __init__(self, func, rate_limit=None, daemon=True):
         super().__init__()
         self.__func = func
-        self.__result = ThreadSafeContainer()
         self.rate_limit = rate_limit
         self.__thread_lock = threading.RLock()
         self.__thread = None
         self.__is_daemon = daemon
         self.__should_stop = False
-
-    @property
-    def result(self):
-        return self.__result
 
     @property
     def is_daemon(self):
@@ -119,10 +137,20 @@ class WorkerThread(object):
     def run(self):
         while not self.__should_stop:
             start_ts = time.perf_counter()
-            self.result.set(self.__func())
+            self.__func()
             end_ts = time.perf_counter()
             duration = end_ts - start_ts
             rate_limit = self.rate_limit
             if isinstance(rate_limit, int) or isinstance(rate_limit, float):
                 time.sleep(max(0.0, 1.0 / rate_limit - duration))
             time.sleep(0)
+
+
+class WorkerThreadWithResult(WorkerThread):
+    def __init__(self, func, rate_limit=None, daemon=True):
+        super().__init__(lambda: self.result.set(func()), rate_limit, daemon)
+        self.__result = ThreadSafeContainer()
+
+    @property
+    def result(self):
+        return self.__result

@@ -8,7 +8,7 @@ import json
 import time
 
 from taggridscanner.aux.config import store_config, set_calibration
-from taggridscanner.aux.threading import WorkerThread, ThreadSafeContainer
+from taggridscanner.aux.threading import WorkerThreadWithResult, ThreadSafeContainer
 from taggridscanner.aux.utils import Functor
 from taggridscanner.pipeline.generate_calibration_pattern import (
     GenerateCalibrationPattern,
@@ -115,7 +115,7 @@ def calibrate(args):
     view_calibration = ViewImage("image to calibrate")
 
     calibrate_worker = CalibrateWorker(args)
-    producer = WorkerThread(calibrate_worker)
+    producer = WorkerThreadWithResult(calibrate_worker)
     producer.start()
     producer.result.wait()
 

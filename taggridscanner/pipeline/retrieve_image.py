@@ -2,7 +2,7 @@ import threading
 import time
 import cv2
 
-from taggridscanner.aux.threading import WorkerThread
+from taggridscanner.aux.threading import WorkerThreadWithResult
 from taggridscanner.aux.utils import compatible
 
 
@@ -31,7 +31,7 @@ class RetrieveImage:
         self.__last_reconnection_ts = float("-inf")
         self.__rlock = threading.RLock()
         self.__last_image = self.__read_and_block_when_disconnected()
-        self.__worker = WorkerThread(lambda: self.__read())
+        self.__worker = WorkerThreadWithResult(lambda: self.__read())
         self.__worker.start()
 
     @property

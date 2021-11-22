@@ -1,4 +1,3 @@
-import json
 import sys
 import time
 import cv2
@@ -6,7 +5,12 @@ import numpy as np
 
 from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, store_config
 from taggridscanner.aux.newline_detector import NewlineDetector
-from taggridscanner.aux.threading import ThreadSafeContainer, WorkerThread
+from taggridscanner.aux.threading import (
+    ThreadSafeValue,
+    ThreadSafeContainer,
+    WorkerThreadWithResult,
+    WorkerThread,
+)
 from taggridscanner.aux.utils import (
     abs_corners_to_rel_corners,
     rel_corners_to_abs_corners,
@@ -83,15 +87,38 @@ class ScanWorker(Functor):
         self.last_tag_data = self.detect_tags.create_empty_tags()
 
         self.__key = ThreadSafeContainer()
-        self.__compute_visualization = ThreadSafeContainer(True)
+        self.__compute_visualization = ThreadSafeValue(True)
+
+        self.__tag_data = ThreadSafeContainer()
+        self.__rel_corners = ThreadSafeValue(rel_roi_vertices)
+        self.__viz = ThreadSafeContainer()
+
+        self.preprocessed_src = None
+        self.__freeze_input_image = ThreadSafeValue(False)
 
     @property
     def key(self):
         return self.__key
 
     @property
+    def tag_data(self):
+        return self.__tag_data
+
+    @property
+    def rel_corners(self):
+        return self.__rel_corners
+
+    @property
+    def viz(self):
+        return self.__viz
+
+    @property
     def compute_visualization(self):
         return self.__compute_visualization
+
+    @property
+    def freeze_input_image(self):
+        return self.__freeze_input_image
 
     def default_vertices(self):
         return np.array(
@@ -106,59 +133,82 @@ class ScanWorker(Functor):
     def work(self):
         start_ts = time.perf_counter()
 
+        needs_update = False
+
         try:
             key = self.key.retrieve_nowait()
             vert_step_small = 0.25
             vert_step_big = 10.0
-            if key == -1:
-                pass
-            elif key == 119:  # w
-                self.vertices[self.idx][1] -= vert_step_small
-            elif key == 97:  # a
-                self.vertices[self.idx][0] -= vert_step_small
-            elif key == 115:  # s
-                self.vertices[self.idx][1] += vert_step_small
-            elif key == 100:  # d
-                self.vertices[self.idx][0] += vert_step_small
-            elif key == 87:  # W
-                self.vertices[self.idx][1] -= vert_step_big
-            elif key == 65:  # A
-                self.vertices[self.idx][0] -= vert_step_big
-            elif key == 83:  # S
-                self.vertices[self.idx][1] += vert_step_big
-            elif key == 68:  # D
-                self.vertices[self.idx][0] += vert_step_big
-            elif key == 32:  # <SPACE>
+
+            def offset_current_vertex(offset_2d):
+                self.vertices[self.idx][0] += offset_2d[0]
+                self.vertices[self.idx][1] += offset_2d[1]
+
+            def next_vertex():
                 self.idx = (self.idx + 1) % 4
-            elif key == 99:  # c
+
+            def reset_vertices():
                 self.vertices = self.default_vertices()
+
+            key_actions = {
+                ord("w"): lambda: offset_current_vertex((0, -vert_step_small)),
+                ord("a"): lambda: offset_current_vertex((-vert_step_small, 0)),
+                ord("s"): lambda: offset_current_vertex((0, +vert_step_small)),
+                ord("d"): lambda: offset_current_vertex((+vert_step_small, 0)),
+                ord("W"): lambda: offset_current_vertex((0, -vert_step_big)),
+                ord("A"): lambda: offset_current_vertex((-vert_step_big, 0)),
+                ord("S"): lambda: offset_current_vertex((0, +vert_step_big)),
+                ord("D"): lambda: offset_current_vertex((+vert_step_big, 0)),
+                32: next_vertex,
+                ord("c"): reset_vertices,
+            }
+
+            if key in key_actions:
+                key_actions[key]()
+                needs_update = True
+
         except ThreadSafeContainer.Empty:
             pass
 
         clamp_points(self.vertices, (self.h, self.w))
 
         rel_corners = abs_corners_to_rel_corners(self.vertices, (self.h, self.w))
+        self.rel_corners.set(rel_corners)
 
         self.draw_roi_editor.active_vertex_idx = self.idx
         self.draw_roi_editor.rel_vertices = rel_corners
 
-        src = self.retrieve_image()
-        preprocessed = self.preprocess(src)
+        freeze_input_image = self.freeze_input_image.get_nowait()
+        compute_visualization = self.compute_visualization.get_nowait()
 
-        self.extract_roi.rel_corners = rel_corners
-        extracted_roi = self.extract_roi(preprocessed)
-        gaps_removed = self.remove_gaps(extracted_roi)
-        cropped = self.crop_tile_pixels(gaps_removed)
-        condensed = self.condense_tiles(cropped)
-        thresholded = self.threshold(condensed)
-        tag_data = self.detect_tags(thresholded)
+        if self.preprocessed_src is None or not freeze_input_image:
+            src = self.retrieve_image()
+            self.preprocessed_src = self.preprocess(src)
+            needs_update = True
 
-        if not np.array_equal(self.last_tag_data, tag_data):
-            self.last_tag_data = tag_data
-            self.transform_and_notify(tag_data)
+        copy_preprocessed_src = freeze_input_image or compute_visualization
 
-        try:
-            if self.compute_visualization.get_nowait():
+        if needs_update:
+            preprocessed = (
+                np.copy(self.preprocessed_src)
+                if copy_preprocessed_src
+                else self.preprocessed_src
+            )
+
+            self.extract_roi.rel_corners = rel_corners
+            extracted_roi = self.extract_roi(preprocessed)
+            gaps_removed = self.remove_gaps(extracted_roi)
+            cropped = self.crop_tile_pixels(gaps_removed)
+            condensed = self.condense_tiles(cropped)
+            thresholded = self.threshold(condensed)
+            tag_data = self.detect_tags(thresholded)
+            self.tag_data.set(tag_data)
+
+            if not np.array_equal(self.last_tag_data, tag_data):
+                self.last_tag_data = tag_data
+                self.transform_and_notify(tag_data)
+
+            if compute_visualization:
                 roi_editor_img = self.draw_roi_editor(preprocessed)
                 gaps_removed_with_grid = self.draw_grid(gaps_removed)
                 cropped_with_grid = self.draw_grid_no_crop(cropped)
@@ -166,28 +216,20 @@ class ScanWorker(Functor):
                 thresholded_with_grid = self.draw_grid_no_crop(
                     self.upscale(thresholded)
                 )
-                viz = (
-                    roi_editor_img,
-                    extracted_roi,
-                    gaps_removed_with_grid,
-                    cropped_with_grid,
-                    condensed_with_grid,
-                    thresholded_with_grid,
+                self.viz.set(
+                    (
+                        roi_editor_img,
+                        extracted_roi,
+                        gaps_removed_with_grid,
+                        cropped_with_grid,
+                        condensed_with_grid,
+                        thresholded_with_grid,
+                    )
                 )
-            else:
-                viz = None
-        except ThreadSafeContainer.Empty:
-            viz = None
 
         end_ts = time.perf_counter()
         rate = 1.0 / (end_ts - start_ts)
         # print("max. {:.1f} detections per second".format(rate), file=sys.stderr)
-
-        return (
-            tag_data,
-            rel_corners,
-            viz,
-        )
 
 
 def scan(args):
@@ -226,40 +268,39 @@ def scan(args):
     producer = WorkerThread(roi_worker)
     producer.rate_limit = args["rate_limit"]
     producer.start()
-    producer.result.wait()
+    roi_worker.tag_data.wait()
 
+    freeze_input_image = roi_worker.freeze_input_image.get_nowait()
     mode = "edit_roi"
+    force_ui_update = False
+    last_viz = None
     while True:
         frame_start_ts = time.perf_counter()
 
         try:
-            (tag_data, rel_corners, viz) = producer.result.retrieve_nowait()
-
-            if viz is None:
-                for view_image in all_viewers:
-                    view_image.hide()
-                cv2.pollKey()
-                has_window = False
-            else:
-                (
-                    roi_editor_img,
-                    extracted_roi,
-                    gaps_removed_with_grid,
-                    cropped_with_grid,
-                    condensed_with_grid,
-                    thresholded_with_grid,
-                ) = viz
-
-                view_roi_editor(roi_editor_img)
-                view_extracted_roi(extracted_roi)
-                view_roi_without_gaps(gaps_removed_with_grid)
-                view_cropped_tile_cells(cropped_with_grid)
-                view_condensed_cells(condensed_with_grid)
-                view_thresholded(thresholded_with_grid)
-                has_window = True
-
+            last_viz = viz = roi_worker.viz.retrieve_nowait()
         except ThreadSafeContainer.Empty:
+            viz = last_viz if force_ui_update else None
             pass
+
+        if viz is not None:
+            (
+                roi_editor_img,
+                extracted_roi,
+                gaps_removed_with_grid,
+                cropped_with_grid,
+                condensed_with_grid,
+                thresholded_with_grid,
+            ) = viz
+
+            view_roi_editor(roi_editor_img)
+            view_extracted_roi(extracted_roi)
+            view_roi_without_gaps(gaps_removed_with_grid)
+            view_cropped_tile_cells(cropped_with_grid)
+            view_condensed_cells(condensed_with_grid)
+            view_thresholded(thresholded_with_grid)
+            has_window = True
+            force_ui_update = False
 
         frame_end_ts = time.perf_counter()
         frame_time_left = max(0.0, 1.0 / max_fps - (frame_end_ts - frame_start_ts))
@@ -269,11 +310,9 @@ def scan(args):
                 newline_detector.result.retrieve_nowait()
                 auto_hide_timeout.reset()
                 with roi_worker.compute_visualization.condition:
-                    try:
-                        show_ui = not roi_worker.compute_visualization.get_nowait()
-                    except ThreadSafeContainer.Empty:
-                        show_ui = False
+                    show_ui = not roi_worker.compute_visualization.get()
                     roi_worker.compute_visualization.set(show_ui)
+                    force_ui_update = True if show_ui else False
             except ThreadSafeContainer.Empty:
                 pass
 
@@ -281,19 +320,20 @@ def scan(args):
             auto_hide_timeout.reset()
             roi_worker.compute_visualization.set(False)
 
-        try:
-            if not roi_worker.compute_visualization.get_nowait():
-                for view_image in all_viewers:
-                    view_image.hide()
-                cv2.pollKey()
-        except ThreadSafeContainer.Empty:
-            pass
+        if not roi_worker.compute_visualization.get_nowait():
+            for view_image in all_viewers:
+                view_image.hide()
+            cv2.pollKey()
+            has_window = False
 
         if has_window:
             ms_to_wait_for_key = max(1, int(1000 * frame_time_left))
             key = cv2.waitKey(ms_to_wait_for_key)
             if key == -1:
                 pass
+            elif key == ord("f"):
+                freeze_input_image = not freeze_input_image
+                roi_worker.freeze_input_image.set(freeze_input_image)
             else:
                 auto_hide_timeout.reset()
                 if mode == "edit_roi":
@@ -317,7 +357,7 @@ def scan(args):
                             "Saving ROI to: {}".format(args["config-path"]),
                             file=sys.stderr,
                         )
-                        set_roi(args["raw-config"], rel_corners)
+                        set_roi(args["raw-config"], roi_worker.rel_corners.get())
                         store_config(args["raw-config"], args["config-path"])
                     else:
                         print("Aborting.", file=sys.stderr)
