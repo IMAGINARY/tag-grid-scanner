@@ -252,7 +252,6 @@ def scan(args):
         view_thresholded,
     ]
 
-    rel_corners = None
     max_fps = 60
     has_window = False
 
@@ -341,15 +340,14 @@ def scan(args):
                         print("Aborting.", file=sys.stderr)
                         sys.exit(1)
                     elif key == 13:  # <ENTER>
-                        if rel_corners is not None:
-                            print(
-                                "Press ENTER to save ROI to config file: {}".format(
-                                    args["config-path"]
-                                ),
-                                file=sys.stderr,
-                            )
-                            print("Press any other key to abort.", file=sys.stderr)
-                            mode = "store_roi"
+                        print(
+                            "Press ENTER to save ROI to config file: {}".format(
+                                args["config-path"]
+                            ),
+                            file=sys.stderr,
+                        )
+                        print("Press any other key to abort.", file=sys.stderr)
+                        mode = "store_roi"
                     roi_worker.key.set(key)
                 elif mode == "store_roi":
                     if key == 13:  # <ENTER>
