@@ -341,7 +341,7 @@ def scan(args):
                 freeze_input_image = not freeze_input_image
                 roi_worker.freeze_input_image.set(freeze_input_image)
                 print(
-                    "freezing" if freeze_input_image else "unfreezing", file=sys.stderr
+                    "Freezing" if freeze_input_image else "Unfreezing", file=sys.stderr
                 )
             else:
                 auto_hide_timeout.reset()
