@@ -6,7 +6,7 @@ class NotificationManager:
     def __init__(self, notifiers, interval=None):
         self.notifiers = notifiers
         self.__cond = threading.Condition()
-        self.__last_notification = None
+        self.__notification = None
         self.__new_notification = None
         self.__interval = interval
         self.__thread = threading.Thread(target=lambda: self.__loop(), daemon=True)
@@ -40,8 +40,5 @@ class NotificationManager:
 
             # send the most recent data
             if self.__notification is not None:
-                self.__post_notification()
-
-    def __post_notification(self):
-        for notify in self.notifiers:
-            notify(self.__notification)
+                for notify in self.notifiers:
+                    notify(self.__notification)
