@@ -92,6 +92,7 @@ class ScanWorker(Functor):
         self.__tag_data = ThreadSafeContainer()
         self.__rel_corners = ThreadSafeValue(rel_roi_vertices)
         self.__viz = ThreadSafeContainer()
+        self.__notify = ThreadSafeValue(True)
 
         self.preprocessed_src = None
         self.__freeze_input_image = ThreadSafeValue(False)
@@ -111,6 +112,10 @@ class ScanWorker(Functor):
     @property
     def viz(self):
         return self.__viz
+
+    @property
+    def notify(self):
+        return self.__notify
 
     @property
     def compute_visualization(self):
@@ -206,7 +211,8 @@ class ScanWorker(Functor):
 
             if not np.array_equal(self.last_tag_data, tag_data):
                 self.last_tag_data = tag_data
-                self.transform_and_notify(tag_data)
+                if self.notify.get():
+                    self.transform_and_notify(tag_data)
 
             if compute_visualization:
                 roi_editor_img = self.draw_roi_editor(preprocessed)
@@ -264,6 +270,7 @@ def scan(args):
 
     roi_worker = ScanWorker(config_with_defaults)
     roi_worker.compute_visualization.set(not args["hide_gui"] and not args["no_gui"])
+    roi_worker.notify.set(not args["no_notify"])
     producer = WorkerThread(roi_worker)
     producer.rate_limit = args["rate_limit"]
     producer.start()

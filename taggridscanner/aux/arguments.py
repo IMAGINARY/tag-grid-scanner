@@ -131,6 +131,11 @@ def get_argument_parser():
         action="store_true",
         help="ignore the scale config option, e.g. to improve ROI selection",
     )
+    parser_scan.add_argument(
+        "--no-notify",
+        action="store_true",
+        help="do not send or output any tag data notification",
+    )
 
     # parser for 'snapshot' command
     parser_snapshot = sub_parsers.add_parser(
