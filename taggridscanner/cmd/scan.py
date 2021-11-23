@@ -333,6 +333,9 @@ def scan(args):
             elif key == ord("f"):
                 freeze_input_image = not freeze_input_image
                 roi_worker.freeze_input_image.set(freeze_input_image)
+                print(
+                    "freezing" if freeze_input_image else "unfreezing", file=sys.stderr
+                )
             else:
                 auto_hide_timeout.reset()
                 if mode == "edit_roi":
