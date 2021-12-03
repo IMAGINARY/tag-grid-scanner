@@ -202,11 +202,6 @@ properties:
         title: Angle of rotation applied to the camera image.
         description: >
           Angle of rotation applied to the camera image.
-
-
-          This rotation is merely to assist debugging since the rotation can also be applied to the output at
-          lower computational cost via the [`notify` section](#notify). It can also be useful during ROI selection if
-          the camera is mounted at an angle.
         "$ref": "#/$defs/rotation"
         default: 0
       flipV:
