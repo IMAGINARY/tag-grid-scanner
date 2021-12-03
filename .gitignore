@@ -32,8 +32,13 @@ Temporary Items
 
 # End of https://www.toptal.com/developers/gitignore/api/macos
 
+*.py[cod]
+
 config.yaml
 config.yml
 config.*.yaml
 config.*.yml
-snapshot.jpg
+snapshot*.jpg
+snapshot*.png
+
+marker/
