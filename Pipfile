@@ -24,4 +24,4 @@ allow_prereleases = true
 
 [scripts]
 tag-grid-scanner = "python runner.py"
-generate-schema-doc = "generate-schema-doc --config-file json-schema-for-humans.yaml  taggridscanner/aux/config_schema.yaml doc/"
+generate-schema-doc = "generate-schema-doc --config-file json-schema-for-humans.yaml  taggridscanner/aux/config_schema.yaml docs/"
