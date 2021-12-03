@@ -140,7 +140,7 @@ The image below is again magnified for visualization purposes.
 
 [Code](../taggridscanner/pipeline/threshold.py)
 
-## Matching the tiles with known tags
+## Matching tiles and tags
 
 Each tile is compared with each tag and its rotations. If a match is found, the tile is replaced with the data
 associated with the matching tag. If there is no match, it is replaced with the data for unknown tags. The results are
