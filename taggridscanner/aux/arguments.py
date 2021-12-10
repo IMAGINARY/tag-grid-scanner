@@ -6,6 +6,7 @@ from taggridscanner.cmd.scan import scan
 from taggridscanner.cmd.display import display
 from taggridscanner.cmd.calibrate import calibrate
 from taggridscanner.cmd.snapshot import snapshot
+from taggridscanner.cmd.viewport import viewport
 
 
 class ConfigParseAction(argparse.Action):
@@ -95,6 +96,14 @@ def get_argument_parser():
     )
     parser_display.set_defaults(func=display)
 
+    # parser for 'viewport' command
+    parser_viewport = sub_parsers.add_parser(
+        "viewport",
+        help="auto-detect the viewport via markers",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_viewport.set_defaults(func=viewport)
+
     # parser for 'scan' command
     parser_scan = sub_parsers.add_parser(
         "scan",
@@ -167,6 +176,7 @@ def get_argument_parser():
     all_subparsers = [
         parser_calibrate,
         parser_display,
+        parser_viewport,
         parser_scan,
         parser_snapshot,
     ]
