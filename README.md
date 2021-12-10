@@ -24,6 +24,7 @@ pipenv install
 
 - [Processing pipeline](docs/pipeline.md)
 - [Physical setup](docs/physical.md)
+- [Configuration file format](docs/config_schema.html)
 
 ## License
 
