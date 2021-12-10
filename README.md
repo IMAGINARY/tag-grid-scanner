@@ -1,5 +1,7 @@
 # Tag grid scanner
 
+The scanner component for [future-mobility](https://github.com/IMAGINARY/future-mobility).
+
 ## Installation
 
 Install production dependencies via:
