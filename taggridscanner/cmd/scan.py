@@ -26,6 +26,7 @@ from taggridscanner.pipeline.extract_roi import ExtractROI
 from taggridscanner.pipeline.retrieve_image import RetrieveImage
 from taggridscanner.pipeline.notify import Notify
 from taggridscanner.pipeline.preprocess import Preprocess
+from taggridscanner.pipeline.detect_markers import DetectMarkers
 from taggridscanner.pipeline.remove_gaps import RemoveGaps
 from taggridscanner.pipeline.threshold import Threshold
 from taggridscanner.pipeline.transform_tag_data import TransformTagData
@@ -47,6 +48,12 @@ class ScanWorker(Functor):
             self.config_with_defaults
         )
         self.preprocess = Preprocess.create_from_config(self.config_with_defaults)
+
+        self.detect_markers = DetectMarkers(
+            self.config_with_defaults["dimensions"]["marker"]["dictionary"],
+            tuple(self.config_with_defaults["dimensions"]["marker"]["ids"]),
+            tuple(map(tuple, self.config_with_defaults["dimensions"]["marker"]["centers"])),
+        )
 
         self.h, self.w = self.retrieve_image.size
 
@@ -200,8 +207,12 @@ class ScanWorker(Functor):
                 else self.preprocessed_src
             )
 
+            # TODO: Take care of case where the config file does not contain the marker specification.
+            preprocessed, marker_homography_matrix, matched_markers, remaining_markers, markers_not_on_hull = self.detect_markers(
+                preprocessed)
+
             self.extract_roi.rel_corners = rel_corners
-            extracted_roi = self.extract_roi(preprocessed)
+            extracted_roi = self.extract_roi(preprocessed, marker_homography_matrix)
             gaps_removed = self.remove_gaps(extracted_roi)
             cropped = self.crop_tile_pixels(gaps_removed)
             condensed = self.condense_tiles(cropped)

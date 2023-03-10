@@ -86,12 +86,15 @@ class ExtractROI(Functor):
         self.target_aspect_ratio = target_aspect_ratio
         self.rel_corners = rel_corners
 
-    def __call__(self, image):
+    def __call__(self, image, marker_homography_matrix):
         # compute target ROI size
         abs_corners = rel_corners_to_abs_corners(self.rel_corners, image.shape)
         target_size = compute_roi_shape(abs_corners, self.target_aspect_ratio)
 
         # compute homography matrix
         mtx = compute_roi_matrix(image.shape, self.rel_corners, target_size)
+
+        # incorporate marker homography matrix
+        mtx = np.matmul(mtx, marker_homography_matrix)
 
         return cv2.warpPerspective(image, mtx, target_size, flags=cv2.INTER_AREA)
