@@ -91,7 +91,7 @@ class RetrieveImage:
                 self.capture.release()
                 ret = self.capture.open(self.id_or_filename, self.api_preference)
                 if ret:
-                    for (prop_id, prop_value) in self.props:
+                    for prop_id, prop_value in self.props:
                         self.capture.set(prop_id, prop_value)
 
     @property

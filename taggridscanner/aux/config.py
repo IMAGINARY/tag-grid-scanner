@@ -4,6 +4,8 @@ import pathlib
 import numpy as np
 from ruamel.yaml import YAML
 
+from taggridscanner.pipeline.detect_markers import get_marker_dict
+
 yaml = YAML()
 
 
@@ -90,6 +92,12 @@ def preprocess_config(config, config_path):
                 config["dimensions"]["crop"],
                 config["dimensions"]["crop"],
             ]
+
+    if "marker" in config["dimensions"]:
+        marker_dict = get_marker_dict(config["dimensions"]["marker"]["dictionary"])
+        print(dir(marker_dict))
+        assert marker_dict is not None
+        config["dimensions"]["marker"]["dictionary"] = marker_dict
 
     return config
 

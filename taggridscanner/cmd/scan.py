@@ -26,6 +26,7 @@ from taggridscanner.pipeline.extract_roi import ExtractROI
 from taggridscanner.pipeline.retrieve_image import RetrieveImage
 from taggridscanner.pipeline.notify import Notify
 from taggridscanner.pipeline.preprocess import Preprocess
+from taggridscanner.pipeline.detect_markers import DetectMarkers
 from taggridscanner.pipeline.remove_gaps import RemoveGaps
 from taggridscanner.pipeline.threshold import Threshold
 from taggridscanner.pipeline.transform_tag_data import TransformTagData
@@ -47,6 +48,11 @@ class ScanWorker(Functor):
             self.config_with_defaults
         )
         self.preprocess = Preprocess.create_from_config(self.config_with_defaults)
+
+        self.detect_markers = DetectMarkers(
+            self.config_with_defaults["dimensions"]["marker"]["dictionary"],
+            self.config_with_defaults["dimensions"]["marker"]["ids"],
+        )
 
         self.h, self.w = self.retrieve_image.size
 
@@ -199,6 +205,8 @@ class ScanWorker(Functor):
                 if copy_preprocessed_src
                 else self.preprocessed_src
             )
+
+            preprocessed = self.detect_markers(preprocessed)
 
             self.extract_roi.rel_corners = rel_corners
             extracted_roi = self.extract_roi(preprocessed)
