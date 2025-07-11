@@ -81,9 +81,6 @@ class DetectMarkers(Functor):
 
         marker_cornerss, marker_ids, _ = self.detector.detectMarkers(image)
 
-        # TODO: Move the drawing of detected markers to a pipeline step
-        image = aruco.drawDetectedMarkers(image, marker_cornerss, marker_ids)
-
         if marker_ids is None or len(marker_cornerss) == 0:
             return image, self.prev_homography_matrix, [], [], []
 

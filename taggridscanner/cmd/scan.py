@@ -20,6 +20,7 @@ from taggridscanner.aux.utils import (
 from taggridscanner.pipeline.condense_tiles import CondenseTiles
 from taggridscanner.pipeline.crop_tile_cells import CropTileCells
 from taggridscanner.pipeline.detect_tags import DetectTags
+from taggridscanner.pipeline.draw_markers import DrawMarkers
 from taggridscanner.pipeline.draw_grid import DrawGrid
 from taggridscanner.pipeline.draw_roi_editor import DrawROIEditor
 from taggridscanner.pipeline.extract_roi import ExtractROI
@@ -54,6 +55,8 @@ class ScanWorker(Functor):
             tuple(self.config_with_defaults["dimensions"]["marker"]["ids"]),
             tuple(map(tuple, self.config_with_defaults["dimensions"]["marker"]["centers"])),
         )
+
+        self.draw_markers = DrawMarkers()
 
         self.h, self.w = self.retrieve_image.size
 
@@ -226,7 +229,11 @@ class ScanWorker(Functor):
                     self.transform_and_notify(tag_data)
 
             if compute_visualization:
-                roi_editor_img = self.draw_roi_editor(preprocessed)
+                # TODO: Take care of case where the config file does not contain the marker specification.
+                preprocessed_with_markers = self.draw_markers(
+                    preprocessed, matched_markers, remaining_markers, markers_not_on_hull
+                )
+                roi_editor_img = self.draw_roi_editor(preprocessed_with_markers)
                 gaps_removed_with_grid = self.draw_grid(gaps_removed)
                 cropped_with_grid = self.draw_grid_no_crop(cropped)
                 condensed_with_grid = self.draw_grid_no_crop(self.upscale(condensed))
