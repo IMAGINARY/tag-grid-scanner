@@ -2,7 +2,8 @@ import cv2
 import math
 import numpy as np
 
-from taggridscanner.aux.utils import Functor, rel_corners_to_abs_corners
+from taggridscanner.aux.utils import Functor, abs_corners_to_rel_corners
+from taggridscanner.aux.types import Point2f4
 
 
 def create_frame_corners(size):
@@ -81,20 +82,19 @@ def compute_roi_matrix(image_shape, rel_corners, roi_shape):
 
 
 class ExtractROI(Functor):
-    def __init__(self, target_aspect_ratio, rel_corners=create_unit_frame_corners()):
+    def __init__(self, target_aspect_ratio):
         super().__init__()
         self.target_aspect_ratio = target_aspect_ratio
-        self.rel_corners = rel_corners
 
-    def __call__(self, image, marker_homography_matrix):
+    def __call__(self, image, abs_corners: Point2f4) -> np.ndarray:
         # compute target ROI size
-        abs_corners = rel_corners_to_abs_corners(self.rel_corners, image.shape)
-        target_size = compute_roi_shape(abs_corners, self.target_aspect_ratio)
 
+        abs_corners_np = np.asarray(abs_corners, dtype=np.float32)
+        rel_corners = abs_corners_to_rel_corners(abs_corners_np, image.shape)
+        target_size = compute_roi_shape(abs_corners_np, self.target_aspect_ratio)
+
+        # TODO: compute homography matrix from absolute corners
         # compute homography matrix
-        mtx = compute_roi_matrix(image.shape, self.rel_corners, target_size)
-
-        # incorporate marker homography matrix
-        mtx = np.matmul(mtx, marker_homography_matrix)
+        mtx = compute_roi_matrix(image.shape, rel_corners, target_size)
 
         return cv2.warpPerspective(image, mtx, target_size, flags=cv2.INTER_AREA)

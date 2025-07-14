@@ -4,7 +4,7 @@ import pathlib
 import numpy as np
 from ruamel.yaml import YAML
 
-from taggridscanner.pipeline.detect_markers import get_marker_dict
+from taggridscanner.pipeline.track_markers import get_marker_dict
 
 yaml = YAML()
 

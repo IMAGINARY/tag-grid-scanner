@@ -1,8 +1,11 @@
+from typing import Union
+
 import cv2
 from cv2 import aruco
 import numpy as np
 
 from taggridscanner.aux.utils import Functor
+from taggridscanner.aux.types import ROIMarkers, MarkerIdWithCorners, MarkersForVis
 
 OPENCV_MARKER_DICTS = {
     "ARUCO_OPENCV_4X4_50": aruco.DICT_4X4_50,
@@ -39,51 +42,21 @@ def get_marker_dict(marker_dict_name):
 ARUCO_PARAMETERS = aruco.DetectorParameters()
 ARUCO_PARAMETERS.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
 
-MarkerIds = (int, int, int, int)
-Point2f = (float, float)
-Point2f4 = (Point2f, Point2f, Point2f, Point2f)
 
-
-class MarkerIdWithCorners:
-    """Class for storing the corners of an identified marker."""
-
-    def __init__(self, id: int, corners: Point2f4):
-        self.id = id
-        self.corners = corners
-        self.center = (
-            (corners[0][0] + corners[1][0] + corners[2][0] + corners[3][0]) / 4,
-            (corners[0][1] + corners[1][1] + corners[2][1] + corners[3][1]) / 4
-        )
-
-    id: int
-    corners: Point2f4
-    center: Point2f
-
-    def __str__(self):
-        return f"MarkerIdWithCorners(id={self.id}, corners={self.corners}, center={self.center})"
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class DetectMarkers(Functor):
+class TrackMarkers(Functor):
     # TODO: Add "create_from_config" method to create an instance from a configuration file.
-    def __init__(self, marker_dict, marker_ids: MarkerIds,
-                 rel_marker_centers: Point2f4):
+    def __init__(self, marker_dict):
         super().__init__()
-        self.marker_ids = marker_ids
-        self.rel_marker_centers = rel_marker_centers
         self.detector = aruco.ArucoDetector(marker_dict, ARUCO_PARAMETERS)
-        self.prev_homography_matrix = np.identity(3)
 
-    def __call__(self, image) -> (np.ndarray, list[MarkerIdWithCorners], list[MarkerIdWithCorners],
-                                  list[MarkerIdWithCorners]):
-        print("Searching for marker ids: {}".format(self.marker_ids));
+    def __call__(self, image, src_roi_markers: ROIMarkers) -> (Union[ROIMarkers, None], MarkersForVis):
+        roi_marker_ids = [m.id for m in src_roi_markers]
+        print("Searching for marker ids: {}".format(roi_marker_ids))
 
         marker_cornerss, marker_ids, _ = self.detector.detectMarkers(image)
 
         if marker_ids is None or len(marker_cornerss) == 0:
-            return self.prev_homography_matrix, [], [], []
+            return None, {"matched": [], "remaining": [], "not_on_hull": []}
 
         assert len(marker_cornerss) == len(
             marker_ids), "There must be a one-to-one correspondence between list of marker corners and marker ids."
@@ -94,7 +67,7 @@ class DetectMarkers(Functor):
         markers_all = []
         print(marker_cornerss, marker_ids)
         for [marker_corners], [marker_id] in zip(marker_cornerss, marker_ids):
-            if marker_id in self.marker_ids:
+            if marker_id in roi_marker_ids:
                 assert len(marker_corners) == 4, "There must be exactly 4 marker corners."
                 marker_corners_tuple = tuple(map(lambda p: (p[0], p[1]), marker_corners))
                 markers_all.append(MarkerIdWithCorners(marker_id, marker_corners_tuple))
@@ -119,7 +92,7 @@ class DetectMarkers(Functor):
         print("markers not on hull: {}".format(markers_not_on_hull))
 
         matched_markers = list(
-            map(lambda m_id: next((m for m in markers_on_hull if m_id == m.id), None), self.marker_ids))
+            map(lambda m_id: next((m for m in markers_on_hull if m_id == m.id), None), roi_marker_ids))
         print("matched markers: {}".format(matched_markers))
 
         remaining_markers = list(filter(lambda m: m not in matched_markers, markers_on_hull))
@@ -128,20 +101,8 @@ class DetectMarkers(Functor):
         if None in matched_markers:
             print("Not all markers were detected. Skipping homography computation.")
             matched_markers_without_none = list(filter(lambda m: m is not None, matched_markers))
-            return self.prev_homography_matrix, matched_markers_without_none, remaining_markers, markers_not_on_hull
+            return None, {"matched": matched_markers_without_none, "remaining": remaining_markers,
+                          "not_on_hull": markers_not_on_hull}
 
-        height, width, _ = image.shape
-        abs_marker_centers = list(map(lambda m: (m[0] * width, m[1] * height), self.rel_marker_centers))
-        abs_matched_marker_centers = list(map(lambda m: m.center, matched_markers))
-        rel_matched_marker_centers = list(map(lambda m: (m.center[0] / width, m.center[1] / height), matched_markers))
-        print("original relative  markers centers: {}".format(self.rel_marker_centers))
-        print("matched relative markers centers:  {}".format(rel_matched_marker_centers))
-        print("original absolute  markers centers: {}".format(abs_marker_centers))
-        print("matched absolute markers centers:  {}".format(abs_matched_marker_centers))
-
-        h = cv2.getPerspectiveTransform(np.asarray(abs_matched_marker_centers, dtype=np.float32),
-                                        np.asarray(abs_marker_centers, dtype=np.float32))
-        print("homography matrix: {}".format(h))
-
-        self.prev_homography_matrix = h
-        return h, matched_markers, remaining_markers, markers_not_on_hull
+        return tuple(matched_markers), {"matched": matched_markers, "remaining": remaining_markers,
+                                        "not_on_hull": markers_not_on_hull}

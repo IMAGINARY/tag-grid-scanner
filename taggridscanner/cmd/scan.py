@@ -17,17 +17,19 @@ from taggridscanner.aux.utils import (
     Functor,
     Timeout,
 )
+from taggridscanner.aux.types import MarkerIdWithCenter
 from taggridscanner.pipeline.condense_tiles import CondenseTiles
 from taggridscanner.pipeline.crop_tile_cells import CropTileCells
 from taggridscanner.pipeline.detect_tags import DetectTags
 from taggridscanner.pipeline.draw_markers import DrawMarkers
+from taggridscanner.pipeline.map_roi import MapROI
 from taggridscanner.pipeline.draw_grid import DrawGrid
 from taggridscanner.pipeline.draw_roi_editor import DrawROIEditor
 from taggridscanner.pipeline.extract_roi import ExtractROI
 from taggridscanner.pipeline.retrieve_image import RetrieveImage
 from taggridscanner.pipeline.notify import Notify
 from taggridscanner.pipeline.preprocess import Preprocess
-from taggridscanner.pipeline.detect_markers import DetectMarkers
+from taggridscanner.pipeline.track_markers import TrackMarkers
 from taggridscanner.pipeline.remove_gaps import RemoveGaps
 from taggridscanner.pipeline.threshold import Threshold
 from taggridscanner.pipeline.transform_tag_data import TransformTagData
@@ -50,28 +52,28 @@ class ScanWorker(Functor):
         )
         self.preprocess = Preprocess.create_from_config(self.config_with_defaults)
 
-        self.detect_markers = DetectMarkers(
-            self.config_with_defaults["dimensions"]["marker"]["dictionary"],
-            tuple(self.config_with_defaults["dimensions"]["marker"]["ids"]),
-            tuple(map(tuple, self.config_with_defaults["dimensions"]["marker"]["centers"])),
-        )
+        self.h, self.w = self.retrieve_image.size
+
+        self.track_markers = TrackMarkers(self.config_with_defaults["dimensions"]["marker"]["dictionary"])
+        # Convert the relative marker center coordinates from the marker config to absolute coordinates
+        self.src_roi_markers = tuple(map(lambda m: MarkerIdWithCenter(m[0], m[1]),
+                                         zip(self.config_with_defaults["dimensions"]["marker"]["ids"],
+                                             map(lambda c: (c[0] * self.w, c[1] * self.h),
+                                                 self.config_with_defaults["dimensions"]["marker"]["centers"]))))
+        self.dst_roi_markers = self.src_roi_markers
 
         self.draw_markers = DrawMarkers()
 
-        self.h, self.w = self.retrieve_image.size
+        self.map_roi = MapROI()
 
         rel_roi_vertices = self.config_with_defaults["dimensions"]["roi"]
         self.idx = 0
         self.vertices = rel_corners_to_abs_corners(rel_roi_vertices, (self.h, self.w))
+        self.transformed_vertices = self.vertices
 
-        self.draw_roi_editor = DrawROIEditor(
-            rel_vertices=self.vertices, active_vertex=self.idx
-        )
+        self.draw_roi_editor = DrawROIEditor(active_vertex=self.idx)
 
-        self.extract_roi = ExtractROI(
-            target_aspect_ratio=get_roi_aspect_ratio(self.config_with_defaults),
-            rel_corners=abs_corners_to_rel_corners(self.vertices, (self.h, self.w)),
-        )
+        self.extract_roi = ExtractROI(target_aspect_ratio=get_roi_aspect_ratio(self.config_with_defaults))
 
         grid_shape = self.config_with_defaults["dimensions"]["grid"]
         tag_shape = self.config_with_defaults["dimensions"]["tile"]
@@ -211,11 +213,15 @@ class ScanWorker(Functor):
             )
 
             # TODO: Take care of case where the config file does not contain the marker specification.
-            marker_homography_matrix, matched_markers, remaining_markers, markers_not_on_hull = self.detect_markers(
-                preprocessed)
+            dst_roi_markers, markers_for_viz = self.track_markers(preprocessed, self.src_roi_markers)
 
-            self.extract_roi.rel_corners = rel_corners
-            extracted_roi = self.extract_roi(preprocessed, marker_homography_matrix)
+            if dst_roi_markers is not None:
+                self.dst_roi_markers = dst_roi_markers
+                self.transformed_vertices = self.map_roi(tuple(m.center for m in self.dst_roi_markers),
+                                                         tuple(m.center for m in self.src_roi_markers),
+                                                         self.vertices)
+
+            extracted_roi = self.extract_roi(preprocessed, self.transformed_vertices)
             gaps_removed = self.remove_gaps(extracted_roi)
             cropped = self.crop_tile_pixels(gaps_removed)
             condensed = self.condense_tiles(cropped)
@@ -231,9 +237,12 @@ class ScanWorker(Functor):
             if compute_visualization:
                 # TODO: Take care of case where the config file does not contain the marker specification.
                 preprocessed_with_markers = self.draw_markers(
-                    preprocessed, matched_markers, remaining_markers, markers_not_on_hull
+                    preprocessed,
+                    markers_for_viz["matched"],
+                    markers_for_viz["remaining"],
+                    markers_for_viz["not_on_hull"]
                 )
-                roi_editor_img = self.draw_roi_editor(preprocessed_with_markers, marker_homography_matrix)
+                roi_editor_img = self.draw_roi_editor(preprocessed_with_markers, self.transformed_vertices)
                 gaps_removed_with_grid = self.draw_grid(gaps_removed)
                 cropped_with_grid = self.draw_grid_no_crop(cropped)
                 condensed_with_grid = self.draw_grid_no_crop(self.upscale(condensed))

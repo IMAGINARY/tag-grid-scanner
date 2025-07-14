@@ -4,36 +4,36 @@ from taggridscanner.pipeline.draw_roi import DrawROI
 
 
 class DrawROIEditor(DrawROI):
-    def __init__(self, rel_vertices, active_vertex=0):
-        super().__init__(rel_vertices)
+    def __init__(self, active_vertex=0):
+        super().__init__()
         self.active_vertex_idx = active_vertex
 
-    def __call__(self, image, marker_homography_matrix):
-        image = super().__call__(image, marker_homography_matrix)
-        self.draw_vertices(image)
-        self.label_vertices(image)
+    def __call__(self, image, roi_vertices):
+        image = super().__call__(image, roi_vertices)
+        self.draw_vertices(image, roi_vertices)
+        self.label_vertices(image, roi_vertices)
         return image
 
-    def draw_vertices(self, image):
+    def draw_vertices(self, image, roi_vertices):
         circle_scale = max(image.shape[1] / 1920, image.shape[0] / 1080)
         r = round(10 * circle_scale)
         t = round(2 * circle_scale)
 
-        outline_vertices = self.outline_vertices(image.shape)
+        outline_vertices = self.outline_vertices(roi_vertices)
         for idx, p in enumerate(outline_vertices):
             c = (0, 0, 255) if idx == self.active_vertex_idx else (0, 255, 0)
             cv2.circle(image, p, radius=r, color=c, thickness=t)
 
-    def label_vertices(self, image):
-        self.label_vertex(image, 0, True, True, prefix=" ")
-        self.label_vertex(image, 1, False, True, suffix=" ")
-        self.label_vertex(image, 2, False, False, suffix=" ")
-        self.label_vertex(image, 3, True, False, prefix=" ")
+    def label_vertices(self, image, roi_vertices):
+        self.label_vertex(image, roi_vertices, 0, True, True, prefix=" ")
+        self.label_vertex(image, roi_vertices, 1, False, True, suffix=" ")
+        self.label_vertex(image, roi_vertices, 2, False, False, suffix=" ")
+        self.label_vertex(image, roi_vertices, 3, True, False, prefix=" ")
 
-    def label_vertex(self, image, idx, left, top, prefix="", suffix=""):
-        rv = self.abs_vertices(image.shape)
-        text = prefix + "{0:d} [{1[0]:.2f}, {1[1]:.2f}]".format(idx, rv[idx]) + suffix
-        pos = self.outline_vertices(image.shape)[idx]
+    def label_vertex(self, image, roi_vertices, idx, left, top, prefix="", suffix=""):
+        text = prefix + "{0:d} [{1[0]:.2f}, {1[1]:.2f}]".format(idx, roi_vertices[idx]) + suffix
+        roi_outline_vertices = DrawROI.outline_vertices(roi_vertices)
+        pos = roi_outline_vertices[idx]
         color = (0, 0, 255) if idx == self.active_vertex_idx else (0, 255, 0)
         label(image, text, pos, left, top, color)
 
