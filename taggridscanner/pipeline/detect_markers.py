@@ -139,13 +139,9 @@ class DetectMarkers(Functor):
         print("original absolute  markers centers: {}".format(abs_marker_centers))
         print("matched absolute markers centers:  {}".format(abs_matched_marker_centers))
 
-        h, status = cv2.findHomography(np.asarray(abs_matched_marker_centers), np.asarray(abs_marker_centers))
+        h = cv2.getPerspectiveTransform(np.asarray(abs_matched_marker_centers, dtype=np.float32),
+                                        np.asarray(abs_marker_centers, dtype=np.float32))
         print("homography matrix: {}".format(h))
-        print("point status: {}".format(status))
-        if h is None or 0 in status.flatten().tolist():
-            print(
-                "Homography matrix could not be computed or some points were not matched. Skipping homography computation.")
-            return image, self.prev_homography_matrix, matched_markers, remaining_markers, markers_not_on_hull
 
         self.prev_homography_matrix = h
         return h, matched_markers, remaining_markers, markers_not_on_hull
