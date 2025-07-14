@@ -76,13 +76,14 @@ class DetectMarkers(Functor):
         self.detector = aruco.ArucoDetector(marker_dict, ARUCO_PARAMETERS)
         self.prev_homography_matrix = np.identity(3)
 
-    def __call__(self, image):
+    def __call__(self, image) -> (np.ndarray, list[MarkerIdWithCorners], list[MarkerIdWithCorners],
+                                  list[MarkerIdWithCorners]):
         print("Searching for marker ids: {}".format(self.marker_ids));
 
         marker_cornerss, marker_ids, _ = self.detector.detectMarkers(image)
 
         if marker_ids is None or len(marker_cornerss) == 0:
-            return image, self.prev_homography_matrix, [], [], []
+            return self.prev_homography_matrix, [], [], []
 
         assert len(marker_cornerss) == len(
             marker_ids), "There must be a one-to-one correspondence between list of marker corners and marker ids."
@@ -127,7 +128,7 @@ class DetectMarkers(Functor):
         if None in matched_markers:
             print("Not all markers were detected. Skipping homography computation.")
             matched_markers_without_none = list(filter(lambda m: m is not None, matched_markers))
-            return image, self.prev_homography_matrix, matched_markers_without_none, remaining_markers, markers_not_on_hull
+            return self.prev_homography_matrix, matched_markers_without_none, remaining_markers, markers_not_on_hull
 
         height, width, _ = image.shape
         abs_marker_centers = list(map(lambda m: (m[0] * width, m[1] * height), self.rel_marker_centers))
@@ -147,4 +148,4 @@ class DetectMarkers(Functor):
             return image, self.prev_homography_matrix, matched_markers, remaining_markers, markers_not_on_hull
 
         self.prev_homography_matrix = h
-        return image, h, matched_markers, remaining_markers, markers_not_on_hull
+        return h, matched_markers, remaining_markers, markers_not_on_hull

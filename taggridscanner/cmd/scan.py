@@ -211,7 +211,7 @@ class ScanWorker(Functor):
             )
 
             # TODO: Take care of case where the config file does not contain the marker specification.
-            preprocessed, marker_homography_matrix, matched_markers, remaining_markers, markers_not_on_hull = self.detect_markers(
+            marker_homography_matrix, matched_markers, remaining_markers, markers_not_on_hull = self.detect_markers(
                 preprocessed)
 
             self.extract_roi.rel_corners = rel_corners
@@ -233,7 +233,7 @@ class ScanWorker(Functor):
                 preprocessed_with_markers = self.draw_markers(
                     preprocessed, matched_markers, remaining_markers, markers_not_on_hull
                 )
-                roi_editor_img = self.draw_roi_editor(preprocessed_with_markers)
+                roi_editor_img = self.draw_roi_editor(preprocessed_with_markers, marker_homography_matrix)
                 gaps_removed_with_grid = self.draw_grid(gaps_removed)
                 cropped_with_grid = self.draw_grid_no_crop(cropped)
                 condensed_with_grid = self.draw_grid_no_crop(self.upscale(condensed))

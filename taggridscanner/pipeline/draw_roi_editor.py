@@ -8,8 +8,8 @@ class DrawROIEditor(DrawROI):
         super().__init__(rel_vertices)
         self.active_vertex_idx = active_vertex
 
-    def __call__(self, image):
-        image = super().__call__(image)
+    def __call__(self, image, marker_homography_matrix):
+        image = super().__call__(image, marker_homography_matrix)
         self.draw_vertices(image)
         self.label_vertices(image)
         return image
