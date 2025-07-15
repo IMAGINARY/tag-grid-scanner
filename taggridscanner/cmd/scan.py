@@ -30,6 +30,7 @@ from taggridscanner.pipeline.retrieve_image import RetrieveImage
 from taggridscanner.pipeline.notify import Notify
 from taggridscanner.pipeline.preprocess import Preprocess
 from taggridscanner.pipeline.track_markers import TrackMarkers
+from taggridscanner.pipeline.track_no_markers import TrackNoMarkers
 from taggridscanner.pipeline.remove_gaps import RemoveGaps
 from taggridscanner.pipeline.threshold import Threshold
 from taggridscanner.pipeline.transform_tag_data import TransformTagData
@@ -54,12 +55,21 @@ class ScanWorker(Functor):
 
         self.h, self.w = self.retrieve_image.size
 
-        self.track_markers = TrackMarkers(self.config_with_defaults["dimensions"]["marker"]["dictionary"])
+        if "marker" in self.config_with_defaults["dimensions"]:
+            marker_config = self.config_with_defaults["dimensions"]["marker"]
+            self.track_markers = TrackMarkers(self.config_with_defaults["dimensions"]["marker"]["dictionary"])
+            marker_ids = marker_config["ids"]
+            marker_centers = marker_config["centers"]
+        else:
+            # If no marker config is given, use a fake track markers implementation
+            self.track_markers = TrackNoMarkers()
+            marker_ids = [0, 1, 2, 3]
+            marker_centers = [[1.0, 1.0], [1.0, 0.0], [0.0, 0.0], [0.0, 1.0]]
+
         # Convert the relative marker center coordinates from the marker config to absolute coordinates
         self.src_roi_markers = tuple(map(lambda m: MarkerIdWithCenter(m[0], m[1]),
-                                         zip(self.config_with_defaults["dimensions"]["marker"]["ids"],
-                                             map(lambda c: (c[0] * self.w, c[1] * self.h),
-                                                 self.config_with_defaults["dimensions"]["marker"]["centers"]))))
+                                         zip(marker_ids, [(c[0] * self.w, c[1] * self.h) for c in marker_centers])))
+
         self.dst_roi_markers = self.src_roi_markers
 
         self.draw_markers = DrawMarkers()
@@ -212,7 +222,6 @@ class ScanWorker(Functor):
                 else self.preprocessed_src
             )
 
-            # TODO: Take care of case where the config file does not contain the marker specification.
             dst_roi_markers, markers_for_viz = self.track_markers(preprocessed, self.src_roi_markers)
 
             if dst_roi_markers is not None:
@@ -235,7 +244,6 @@ class ScanWorker(Functor):
                     self.transform_and_notify(tag_data)
 
             if compute_visualization:
-                # TODO: Take care of case where the config file does not contain the marker specification.
                 preprocessed_with_markers = self.draw_markers(
                     preprocessed,
                     markers_for_viz["matched"],
