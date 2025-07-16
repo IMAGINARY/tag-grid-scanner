@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from typing import cast
 
-from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, store_config
+from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, set_markers, store_config
 from taggridscanner.aux.newline_detector import NewlineDetector
 from taggridscanner.aux.threading import (
     ThreadSafeValue,
@@ -18,7 +18,7 @@ from taggridscanner.aux.utils import (
     Functor,
     Timeout,
 )
-from taggridscanner.aux.types import MarkerIdWithCorners, ROIMarkers
+from taggridscanner.aux.types import MarkerIdWithCenter, MarkerIdWithCorners, ROIMarkers
 from taggridscanner.pipeline.condense_tiles import CondenseTiles
 from taggridscanner.pipeline.crop_tile_cells import CropTileCells
 from taggridscanner.pipeline.detect_tags import DetectTags
@@ -64,17 +64,17 @@ class ScanWorker(Functor):
             marker_config = self.config_with_defaults["dimensions"]["marker"]
             self.track_markers = TrackMarkers(marker_config["dictionary"], marker_config["tolerance"])
             marker_ids = marker_config["ids"]
-            marker_centers = marker_config["centers"]
+            rel_marker_centers = marker_config["centers"]
         else:
             # If no marker config is given, use a fake track markers implementation
             self.track_markers = TrackNoMarkers()
             marker_ids = [0, 1, 2, 3]
-            marker_centers = [[1.0, 1.0], [1.0, 0.0], [0.0, 0.0], [0.0, 1.0]]
+            rel_marker_centers = [[1.0, 1.0], [1.0, 0.0], [0.0, 0.0], [0.0, 1.0]]
 
         # Convert the relative marker center coordinates from the marker config to absolute coordinates
         self.src_roi_markers = cast(ROIMarkers, tuple(map(lambda m: MarkerIdWithCorners(m[0], (m[1], m[1], m[1], m[1])),
                                                           zip(marker_ids, [(c[0] * self.w, c[1] * self.h) for c in
-                                                                           marker_centers]))))
+                                                                           rel_marker_centers]))))
         self.dst_roi_markers = self.src_roi_markers
 
         self.draw_markers = DrawMarkers()
@@ -117,7 +117,10 @@ class ScanWorker(Functor):
         self.__compute_visualization = ThreadSafeValue(True)
 
         self.__tag_data = ThreadSafeContainer()
-        self.__rel_corners = ThreadSafeValue(rel_roi_vertices)
+        self.__data_for_config_export = ThreadSafeValue({
+            "roi": rel_roi_vertices,
+            "markers": self.dst_roi_markers,
+        })
         self.__viz = ThreadSafeContainer()
         self.__notify = ThreadSafeValue(True)
 
@@ -133,8 +136,8 @@ class ScanWorker(Functor):
         return self.__tag_data
 
     @property
-    def rel_corners(self):
-        return self.__rel_corners
+    def data_for_config_export(self):
+        return self.__data_for_config_export
 
     @property
     def viz(self):
@@ -205,7 +208,6 @@ class ScanWorker(Functor):
         clamp_points(self.vertices, (self.h, self.w))
 
         rel_corners = abs_corners_to_rel_corners(self.vertices, (self.h, self.w))
-        self.rel_corners.set(rel_corners)
 
         self.draw_roi_editor.active_vertex_idx = self.idx
         self.draw_roi_editor.rel_vertices = rel_corners
@@ -236,6 +238,12 @@ class ScanWorker(Functor):
                 self.transformed_vertices = self.map_roi(tuple(m.center for m in self.dst_roi_markers),
                                                          tuple(m.center for m in self.src_roi_markers),
                                                          self.vertices)
+
+            self.__data_for_config_export = ThreadSafeValue({
+                "roi": [[v[0] / self.w, v[1] / self.h] for v in self.transformed_vertices],
+                "markers": [MarkerIdWithCenter(m.id, (m.center[0] / self.w, m.center[1] / self.h)) for m in
+                            self.dst_roi_markers],
+            })
 
             extracted_roi = self.extract_roi(preprocessed, self.transformed_vertices)
             gaps_removed = self.remove_gaps(extracted_roi)
@@ -399,15 +407,17 @@ def scan(args):
                             file=sys.stderr,
                         )
                         print("Press any other key to abort.", file=sys.stderr)
-                        mode = "store_roi"
+                        mode = "store_config_data"
                     roi_worker.key.set(key)
-                elif mode == "store_roi":
+                elif mode == "store_config_data":
                     if key == 13:  # <ENTER>
                         print(
-                            "Saving ROI to: {}".format(args["config-path"]),
+                            "Saving ROI and marker centers to: {}".format(args["config-path"]),
                             file=sys.stderr,
                         )
-                        set_roi(args["raw-config"], roi_worker.rel_corners.get())
+                        data_for_config_export = roi_worker.data_for_config_export.get()
+                        set_roi(args["raw-config"], data_for_config_export["roi"])
+                        set_markers(args["raw-config"], data_for_config_export["markers"])
                         store_config(args["raw-config"], args["config-path"])
                     else:
                         print("Aborting.", file=sys.stderr)
