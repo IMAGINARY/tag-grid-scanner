@@ -9,5 +9,5 @@ class TrackNoMarkers(Functor):
     def __init__(self):
         super().__init__()
 
-    def __call__(self, image, src_roi_markers: ROIMarkers) -> (Union[ROIMarkers, None], MarkersForVis):
+    def __call__(self, image, roi_markers: ROIMarkers) -> (Union[ROIMarkers, None], MarkersForVis):
         return None, {"matched": [], "remaining": [], "not_on_hull": []}

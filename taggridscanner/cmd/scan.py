@@ -2,6 +2,7 @@ import sys
 import time
 import cv2
 import numpy as np
+from typing import cast
 
 from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, store_config
 from taggridscanner.aux.newline_detector import NewlineDetector
@@ -17,7 +18,7 @@ from taggridscanner.aux.utils import (
     Functor,
     Timeout,
 )
-from taggridscanner.aux.types import MarkerIdWithCenter
+from taggridscanner.aux.types import MarkerIdWithCorners, ROIMarkers
 from taggridscanner.pipeline.condense_tiles import CondenseTiles
 from taggridscanner.pipeline.crop_tile_cells import CropTileCells
 from taggridscanner.pipeline.detect_tags import DetectTags
@@ -45,6 +46,10 @@ def clamp_points(points, img_shape):
 
 
 class ScanWorker(Functor):
+    # TODO: Add type hints for other attributes
+    src_roi_markers: ROIMarkers
+    dst_roi_markers: ROIMarkers
+
     def __init__(self, config_with_defaults):
         super().__init__(lambda: self.work())
         self.config_with_defaults = config_with_defaults
@@ -57,7 +62,7 @@ class ScanWorker(Functor):
 
         if "marker" in self.config_with_defaults["dimensions"]:
             marker_config = self.config_with_defaults["dimensions"]["marker"]
-            self.track_markers = TrackMarkers(self.config_with_defaults["dimensions"]["marker"]["dictionary"])
+            self.track_markers = TrackMarkers(marker_config["dictionary"], marker_config["tolerance"])
             marker_ids = marker_config["ids"]
             marker_centers = marker_config["centers"]
         else:
@@ -67,9 +72,9 @@ class ScanWorker(Functor):
             marker_centers = [[1.0, 1.0], [1.0, 0.0], [0.0, 0.0], [0.0, 1.0]]
 
         # Convert the relative marker center coordinates from the marker config to absolute coordinates
-        self.src_roi_markers = tuple(map(lambda m: MarkerIdWithCenter(m[0], m[1]),
-                                         zip(marker_ids, [(c[0] * self.w, c[1] * self.h) for c in marker_centers])))
-
+        self.src_roi_markers = cast(ROIMarkers, tuple(map(lambda m: MarkerIdWithCorners(m[0], (m[1], m[1], m[1], m[1])),
+                                                          zip(marker_ids, [(c[0] * self.w, c[1] * self.h) for c in
+                                                                           marker_centers]))))
         self.dst_roi_markers = self.src_roi_markers
 
         self.draw_markers = DrawMarkers()
@@ -222,7 +227,9 @@ class ScanWorker(Functor):
                 else self.preprocessed_src
             )
 
-            dst_roi_markers, markers_for_viz = self.track_markers(preprocessed, self.src_roi_markers)
+            # Track markers providing the markers detected in the last iteration.
+            # Searching at the previously detected marker positions first will usually speed up the detection.
+            dst_roi_markers, markers_for_viz = self.track_markers(preprocessed, self.dst_roi_markers)
 
             if dst_roi_markers is not None:
                 self.dst_roi_markers = dst_roi_markers

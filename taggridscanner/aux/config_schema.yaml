@@ -302,6 +302,20 @@ properties:
               The centers of the markers corresponding to the marker IDs.
             "$ref": "#/$defs/matrix4x2"
             default: [ [ 0, 0 ], [ 1, 0 ], [ 1, 1 ], [ 0, 1 ] ]
+          tolerance:
+            title: The tolerance for the marker redetection.
+            description: >
+              The tolerance for the marker redetection.
+              
+              
+              The marker detection will heuristically attempt to find the markers in the vicinity of their previously
+              detected positions to speed up the computation. The tolerance defines by how much the search area is
+              enlarged with respect to the previous marker size. A value of 0.0 means that the search area is not
+              enlarged at all, which prevents successful detection in most cases since even the quiet zone around the
+              known markers is not considered. A value of 1.0 means that the search area is enlarged by 100% of the
+              previous marker size (50% in each direction).
+            "$ref": "#/$defs/nonnegnumber"
+            default: 0.5
         required: [ dictionary, ids ]
         additionalProperties: false
       gap:
