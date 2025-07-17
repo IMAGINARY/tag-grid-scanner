@@ -4,9 +4,12 @@ import cv2
 from cv2 import aruco
 import numpy as np
 import math
+import logging
 
 from taggridscanner.aux.utils import Functor
 from taggridscanner.aux.types import ROIMarkers, MarkerIdWithCorners, MarkersForVis
+
+logger = logging.getLogger(__name__)
 
 OPENCV_MARKER_DICTS = {
     "ARUCO_OPENCV_4X4_50": aruco.DICT_4X4_50,
@@ -52,18 +55,34 @@ class TrackMarkers(Functor):
         self.tolerance = tolerance
 
     def __call__(self, image, roi_markers: ROIMarkers) -> (Union[ROIMarkers, None], MarkersForVis):
+        """
+        Attempts to detect the given markers in the provided image, prioritizing their previous positions.
+
+        If redetection fails, it will attempt to detect all markers in the image, compute their convex hull, try to
+        match them with the expected markers.
+
+        Args:
+            image: The image in which to search for markers.
+            roi_markers (ROIMarkers): The tuple of markers (with IDs and corners) expected to be found.
+
+        Returns:
+            Tuple[Union[ROIMarkers, None], MarkersForVis]:
+                - If all markers are redetected, returns the tuple of matched markers and a visualization dictionary.
+                - If not all markers are found, returns None and a dictionary with matched, remaining, and not_on_hull markers.
+        """
         roi_marker_ids = [m.id for m in roi_markers]
-        print("Searching for marker ids: {}".format(roi_marker_ids))
+        logger.debug("Searching for marker ids: %s", roi_marker_ids)
 
         # Try to redetect known markers in the image.
         redetected_markers = [self.redetect_marker(image, m, self.tolerance) for m in roi_markers]
         if not (None in redetected_markers):
-            print("All markers were redetected successfully close to their previous positions.")
+            logger.debug("All markers were redetected successfully close to their previous positions.")
             return tuple(redetected_markers), {"matched": redetected_markers, "remaining": [], "not_on_hull": []}
 
         marker_cornerss, marker_ids, _ = self.detector.detectMarkers(image)
 
         if marker_ids is None or len(marker_cornerss) == 0:
+            logger.debug("No markers detected in the image.")
             return None, {"matched": [], "remaining": [], "not_on_hull": []}
 
         assert len(marker_cornerss) == len(
@@ -73,22 +92,21 @@ class TrackMarkers(Functor):
         # removing markers that are not in the list of marker ids.
         points = []
         markers_all = []
-        print(marker_cornerss, marker_ids)
+        logger.debug("Marker corners: %s, Marker ids: %s", marker_cornerss, marker_ids)
         for [marker_corners], [marker_id] in zip(marker_cornerss, marker_ids):
             if marker_id in roi_marker_ids:
                 assert len(marker_corners) == 4, "There must be exactly 4 marker corners."
                 marker_corners_tuple = tuple(map(lambda p: (p[0], p[1]), marker_corners))
                 markers_all.append(MarkerIdWithCorners(marker_id, marker_corners_tuple))
                 points.extend(marker_corners)
-        print(markers_all)
+        logger.debug("All markers: %s", markers_all)
 
         # Compute convex hull of all marker corners
-        print("all points: {}".format(points))
+        logger.debug("All points: %s", points)
         hull = cv2.convexHull(np.array(points))
-        print("hull: {}".format(hull))
+        logger.debug("Hull: %s", hull)
 
         # Filter out markers that don't have a corner in the convex hull
-        # TODO: Take care of type conversions between float and np.float32.
         markers_on_hull = []
         markers_not_on_hull = []
         for m in markers_all:
@@ -96,18 +114,20 @@ class TrackMarkers(Functor):
                 markers_on_hull.append(m)
             else:
                 markers_not_on_hull.append(m)
-        print("markers on hull: {}".format(markers_on_hull))
-        print("markers not on hull: {}".format(markers_not_on_hull))
+        logger.debug("Markers on hull: %s", markers_on_hull)
+        logger.debug("Markers not on hull: %s", markers_not_on_hull)
 
         matched_markers = list(
             map(lambda m_id: next((m for m in markers_on_hull if m_id == m.id), None), roi_marker_ids))
-        print("matched markers: {}".format(matched_markers))
+        logger.debug("Matched markers: %s", matched_markers)
 
         remaining_markers = list(filter(lambda m: m not in matched_markers, markers_on_hull))
-        print("remaining markers: {}".format(remaining_markers))
+        logger.debug("Remaining markers: %s", remaining_markers)
 
         if None in matched_markers:
-            print("Not all markers were detected. Skipping homography computation.")
+            unmatched_ids = [id_and_match[0] for id_and_match in zip(roi_marker_ids, matched_markers) if
+                             id_and_match[1] is None]
+            logger.warning("Not all markers were detected (missing ids: %s).", unmatched_ids)
             matched_markers_without_none = list(filter(lambda m: m is not None, matched_markers))
             return None, {"matched": matched_markers_without_none, "remaining": remaining_markers,
                           "not_on_hull": markers_not_on_hull}
@@ -115,8 +135,8 @@ class TrackMarkers(Functor):
         return tuple(matched_markers), {"matched": matched_markers, "remaining": remaining_markers,
                                         "not_on_hull": markers_not_on_hull}
 
-    def redetect_marker(self, image, marker: MarkerIdWithCorners, tolerance: float) -> Union[
-        MarkerIdWithCorners, None]:
+    def redetect_marker(self, image, marker: MarkerIdWithCorners, tolerance: float) \
+            -> Union[MarkerIdWithCorners, None]:
         """
         Redetects a known marker in the neighborhood of its original positions.
 
@@ -126,29 +146,40 @@ class TrackMarkers(Functor):
         :return: The redetected marker or None if not found.
         """
 
-        print(np.asarray(marker.corners, dtype=np.float32))
+        logger.debug("Marker corners as array: %s", np.asarray(marker.corners, dtype=np.float32))
 
         # Create a slice of the image around the marker's center, enlarged by the tolerance.
         x, y, w, h = cv2.boundingRect(np.asarray(marker.corners, dtype=np.float32))
 
-        # Calculate the new bounding box coordinates with the given tolerance.
-        ex = max(0, math.floor(x - 0.5 * w * tolerance))
-        ey = max(0, math.floor(y - 0.5 * h * tolerance))
-        ew = math.ceil(w * (1 + tolerance))
-        eh = math.ceil(h * (1 + tolerance))
-        print(f"Attempting redetection of marker {marker.id} in slice ({ex}, {ey}, {ew}, {eh}) (tolerance {tolerance})")
-
-        # Extract the region of interest from the image.
+        # Get the image dimensions.
         iw = image.shape[1]
         ih = image.shape[0]
-        roi = image[ey:min(ey + eh, ih), ex:min(ex + ew, iw)]
+
+        # Calculate the new bounding box coordinates with the given tolerance.
+        ex = math.floor(x - 0.5 * w * tolerance)
+        ey = math.floor(y - 0.5 * h * tolerance)
+        ew = math.ceil(w * (1 + tolerance))
+        eh = math.ceil(h * (1 + tolerance))
+
+        # Ensure the bounding box is within the image dimensions.
+        clamp = lambda v, v_min, v_max: max(v_min, min(v, v_max))
+        ecx = clamp(ex, 0, iw - 1)
+        ecy = clamp(ey, 0, ih - 1)
+        ecw = clamp(ex + ew, 0, iw) - ex
+        ech = clamp(ey + eh, 0, ih) - ey
+
+        logger.debug("Attempting redetection of marker %s in slice %s (tolerance: %f, unclipped: %s)",
+                     marker.id, (ecx, ecy, ecw, ech), tolerance, (ex, ey, ew, eh))
+
+        # Extract the region of interest from the image.
+        roi = image[ecy:ecy + ech, ecx:ecx + ecw]
 
         # Detect markers in the ROI.
         marker_cornerss, marker_ids, _ = self.detector.detectMarkers(roi)
 
         # If no markers were detected, return None.
         if marker_ids is None or len(marker_cornerss) == 0:
-            print(f"No markers detected in the region around marker {marker.id}.")
+            logger.debug("No markers detected in the region around marker %s.", marker.id)
             return None
 
         assert len(marker_cornerss) == len(
@@ -160,8 +191,9 @@ class TrackMarkers(Functor):
             if marker_id == marker.id:
                 assert len(marker_corners) == 4, "There must be exactly 4 marker corners."
                 marker_corners_tuple = tuple(map(lambda p: (p[0] + ex, p[1] + ey), marker_corners))
-                print(f"Redetected marker {marker_id} at {marker_corners_tuple}")
+                logger.debug("Redetected marker %s at %s", marker_id, marker_corners_tuple)
                 return MarkerIdWithCorners(marker_id, marker_corners_tuple)
 
         # If no match is found, return None.
+        logger.debug("Marker %s not found in the redetection region.", marker.id)
         return None

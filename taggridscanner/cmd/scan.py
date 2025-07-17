@@ -3,6 +3,7 @@ import time
 import cv2
 import numpy as np
 from typing import cast
+import logging
 
 from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, set_markers, store_config
 from taggridscanner.aux.newline_detector import NewlineDetector
@@ -38,6 +39,8 @@ from taggridscanner.pipeline.transform_tag_data import TransformTagData
 from taggridscanner.pipeline.upscale import Upscale
 from taggridscanner.pipeline.view_image import ViewImage
 
+logger = logging.getLogger(__name__)
+
 
 def clamp_points(points, img_shape):
     for idx in range(0, 4):
@@ -66,7 +69,8 @@ class ScanWorker(Functor):
             marker_ids = marker_config["ids"]
             rel_marker_centers = marker_config["centers"]
         else:
-            # If no marker config is given, use a fake track markers implementation
+            logger.info("No marker config found in the configuration file. Disabling marker tracking.")
+            # Use a fake track markers implementation
             self.track_markers = TrackNoMarkers()
             marker_ids = [0, 1, 2, 3]
             rel_marker_centers = [[1.0, 1.0], [1.0, 0.0], [0.0, 0.0], [0.0, 1.0]]
@@ -238,6 +242,7 @@ class ScanWorker(Functor):
                 self.transformed_vertices = self.map_roi(tuple(m.center for m in self.dst_roi_markers),
                                                          tuple(m.center for m in self.src_roi_markers),
                                                          self.vertices)
+                logger.debug("All markers found. Updating ROI vertices to: %s", self.transformed_vertices)
 
             self.__data_for_config_export = ThreadSafeValue({
                 "roi": [[v[0] / self.w, v[1] / self.h] for v in self.transformed_vertices],

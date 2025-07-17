@@ -27,7 +27,6 @@ class MapROI(Functor):
         transformation_matrix_np = cv2.getPerspectiveTransform(dst_plane_np, src_plane_np)
 
         # Map the ROI vertices using the transformation matrix
-        print(roi_vertices_np)
         mapped_roi_np = cv2.perspectiveTransform(roi_vertices_np, transformation_matrix_np)
 
         assert mapped_roi_np.shape == (4, 1, 2), "Mapped ROI should have shape (4, 1, 2)"
