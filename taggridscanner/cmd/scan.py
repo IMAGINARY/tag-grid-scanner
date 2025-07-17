@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from typing import cast
 import logging
+from copy import deepcopy
 
 from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, set_markers, store_config
 from taggridscanner.aux.newline_detector import NewlineDetector
@@ -88,7 +89,9 @@ class ScanWorker(Functor):
         rel_roi_vertices = self.config_with_defaults["dimensions"]["roi"]
         self.idx = 0
         self.vertices = rel_corners_to_abs_corners(rel_roi_vertices, (self.h, self.w))
-        self.transformed_vertices = self.vertices
+        self.transformed_vertices = deepcopy(self.vertices)
+        logger.debug("Initial vertices: %s", self.transformed_vertices)
+        logger.debug("Initial transformed vertices: %s", self.vertices)
 
         self.draw_roi_editor = DrawROIEditor(active_vertex=self.idx)
 
@@ -172,6 +175,7 @@ class ScanWorker(Functor):
     def work(self):
         start_ts = time.perf_counter()
 
+        transformed_vertices_need_update = False
         needs_update = False
 
         try:
@@ -180,6 +184,8 @@ class ScanWorker(Functor):
             vert_step_big = 10.0
 
             def offset_current_vertex(offset_2d):
+                nonlocal transformed_vertices_need_update
+                transformed_vertices_need_update = True
                 self.vertices[self.idx][0] += offset_2d[0]
                 self.vertices[self.idx][1] += offset_2d[1]
 
@@ -203,6 +209,7 @@ class ScanWorker(Functor):
             }
 
             if key in key_actions:
+                logger.debug("Key pressed: %s", key)
                 key_actions[key]()
                 needs_update = True
 
@@ -236,6 +243,12 @@ class ScanWorker(Functor):
             # Track markers providing the markers detected in the last iteration.
             # Searching at the previously detected marker positions first will usually speed up the detection.
             dst_roi_markers, markers_for_viz = self.track_markers(preprocessed, self.dst_roi_markers)
+
+            if transformed_vertices_need_update:
+                self.transformed_vertices = self.map_roi(tuple(m.center for m in self.dst_roi_markers),
+                                                         tuple(m.center for m in self.src_roi_markers),
+                                                         self.vertices)
+                logger.debug("Source ROI vertices changed. Updating ROI vertices to: %s", self.transformed_vertices)
 
             if dst_roi_markers is not None:
                 self.dst_roi_markers = dst_roi_markers
