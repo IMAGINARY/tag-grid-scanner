@@ -2,6 +2,7 @@ import argparse
 import pathlib
 
 from taggridscanner.aux.config import load_config
+from taggridscanner.aux.logging import configure_logging
 from taggridscanner.cmd.scan import scan
 from taggridscanner.cmd.display import display
 from taggridscanner.cmd.calibrate import calibrate
@@ -179,6 +180,20 @@ def get_argument_parser():
             action=ConfigParseAction,
             help="configuration file to load",
         )
+        sub_parser.add_argument(
+            "-v",
+            "--verbose",
+            action='count',
+            default=3,
+            help="increase verbosity (can be used multiple times)",
+        )
+        sub_parser.add_argument(
+            "-q",
+            "--quiet",
+            action='count',
+            default=0,
+            help="decrease verbosity (can be used multiple times)",
+        )
 
     return parser
 
@@ -186,6 +201,12 @@ def get_argument_parser():
 def process_arguments():
     parser = get_argument_parser()
     args = vars(parser.parse_args())
+
+    verbosity = args["verbose"] - args["quiet"]
+    del args["verbose"]
+    del args["quiet"]
+    configure_logging(verbosity)
+
     func = args["func"]
     del args["func"]
     func(args)
