@@ -62,7 +62,7 @@ class ScanWorker(Functor):
         )
         self.preprocess = Preprocess.create_from_config(self.config_with_defaults)
 
-        self.h, self.w = self.retrieve_image.size
+        self.h, self.w = self.retrieve_image.scaled_size
 
         if "marker" in self.config_with_defaults["dimensions"]:
             marker_config = self.config_with_defaults["dimensions"]["marker"]

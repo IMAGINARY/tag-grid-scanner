@@ -105,6 +105,15 @@ class RetrieveImage:
     def scale(self):
         return self.__scale
 
+    @property
+    def scaled_size(self):
+        with self.rlock:
+            scale = self.scale
+            size = self.size
+            sh = round(size[0] * scale[0])
+            sw = round(size[1] * scale[1])
+            return (sh, sw)
+
     @scale.setter
     def scale(self, scale):
         assert len(scale) >= 2
