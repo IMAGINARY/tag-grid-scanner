@@ -70,6 +70,19 @@ is rotated or sees a mirror image of the grid.
 
 [Code](../taggridscanner/pipeline/preprocess.py)
 
+## Fiducial marker tracking
+
+The `tag-grid-scanner` can also detect fiducial markers, such as ArUco or AprilTag markers, that act as reference points
+for the region of interest. These markers are tracked from one frame to the next to compensate for camera movements
+after initial configuration. If all preconfigured markers are found in the distortion-corrected camera image, a
+perspective coordinate transformation (homography) is derived from the matched markers. This transformation is then used
+to map the originally configured region of interest into a valid region of interest in the current image.
+
+Since this pipeline step has no graphical representation in the app, this section does not include any images. However,
+the [marker example](../examples/markers) contains a live demonstration of this feature (including the required
+`marker` section in the configuration file). See also [physical setup hints](physical-setup.md) for more information on
+the marker placement.
+
 ## Extract the region of interest from the distortion-corrected image
 
 The image usually contains a lot more than just the tag grid itself. If the camera viewing direction isn't perfectly
