@@ -434,8 +434,13 @@ def scan(args):
                             file=sys.stderr,
                         )
                         data_for_config_export = roi_worker.data_for_config_export.get()
+                        logger.info("Updating ROI in config file.")
                         set_roi(args["raw-config"], data_for_config_export["roi"])
-                        set_markers(args["raw-config"], data_for_config_export["markers"])
+                        if "dimensions" in args["raw-config"] and "markers" in args["raw-config"]["dimensions"]:
+                            logger.info("Updating markers in config file.")
+                            set_markers(args["raw-config"], data_for_config_export["markers"])
+                        else:
+                            logger.info("Config file has no markers section. Skipping marker update.")
                         store_config(args["raw-config"], args["config-path"])
                     else:
                         print("Aborting.", file=sys.stderr)
