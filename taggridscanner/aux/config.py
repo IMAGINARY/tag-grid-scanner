@@ -4,6 +4,8 @@ import pathlib
 import numpy as np
 from ruamel.yaml import YAML
 
+from taggridscanner.pipeline.track_markers import get_marker_dict
+
 yaml = YAML()
 
 
@@ -90,6 +92,12 @@ def preprocess_config(config, config_path):
                 config["dimensions"]["crop"],
                 config["dimensions"]["crop"],
             ]
+
+    if "marker" in config["dimensions"]:
+        marker_dict = get_marker_dict(config["dimensions"]["marker"]["dictionary"])
+        print(dir(marker_dict))
+        assert marker_dict is not None
+        config["dimensions"]["marker"]["dictionary"] = marker_dict
 
     return config
 
@@ -179,6 +187,35 @@ def set_crop(raw_config, crop):
         # copy element-wise to preserve YAML formatting
         for j in range(0, 2):
             crop_config[j] = float(crop[j])
+    return raw_config
+
+
+def set_markers(raw_config, markers):
+    assert len(markers) == 4, "There must be exactly 4 markers to store them in the configuration."
+
+    assert "dimensions" in raw_config, "Dimensions configuration is missing in the raw config."
+    dimensions_config = raw_config["dimensions"]
+
+    assert "marker" in dimensions_config, "Marker configuration is missing in the raw config."
+    marker_config = dimensions_config["marker"]
+
+    if "ids" not in marker_config:
+        marker_config["ids"] = [int(m.id) for m in markers]
+    else:
+        ids_config = marker_config["ids"]
+        # copy element-wise to preserve YAML formatting
+        for j in range(0, 4):
+            ids_config[j] = int(markers[j].id)
+
+    if "centers" not in marker_config:
+        marker_config["centers"] = [list(m.center) for m in markers]
+    else:
+        centers_config = marker_config["centers"]
+        # copy element-wise to preserve YAML formatting
+        for j in range(0, 4):
+            for i in range(0, 2):
+                centers_config[j][i] = float(markers[j].center[i])
+
     return raw_config
 
 

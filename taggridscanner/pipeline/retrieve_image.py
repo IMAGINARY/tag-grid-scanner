@@ -91,7 +91,7 @@ class RetrieveImage:
                 self.capture.release()
                 ret = self.capture.open(self.id_or_filename, self.api_preference)
                 if ret:
-                    for (prop_id, prop_value) in self.props:
+                    for prop_id, prop_value in self.props:
                         self.capture.set(prop_id, prop_value)
 
     @property
@@ -104,6 +104,15 @@ class RetrieveImage:
     @property
     def scale(self):
         return self.__scale
+
+    @property
+    def scaled_size(self):
+        with self.rlock:
+            scale = self.scale
+            size = self.size
+            sh = round(size[0] * scale[0])
+            sw = round(size[1] * scale[1])
+            return (sh, sw)
 
     @scale.setter
     def scale(self, scale):

@@ -273,6 +273,51 @@ properties:
           size of the image, i.e. each value should be in `[0, 1]`.
         "$ref": "#/$defs/matrix4x2"
         default: [ [ 0, 0 ], [ 1, 0 ], [ 1, 1 ], [ 0, 1 ] ]
+      marker:
+        type: object
+        properties:
+          dictionary:
+            title: The marker dictionary.
+            description: >
+              The name of the marker dictionary to use when searching for markers in the image.
+            enum: [
+              ARUCO_OPENCV_4X4_50, ARUCO_OPENCV_4X4_100, ARUCO_OPENCV_4X4_250, ARUCO_OPENCV_4X4_1000,
+              ARUCO_OPENCV_5X5_50, ARUCO_OPENCV_5X5_100, ARUCO_OPENCV_5X5_250, ARUCO_OPENCV_5X5_1000,
+              ARUCO_OPENCV_6X6_50, ARUCO_OPENCV_6X6_100, ARUCO_OPENCV_6X6_250, ARUCO_OPENCV_6X6_1000,
+              ARUCO_OPENCV_7X7_50, ARUCO_OPENCV_7X7_100, ARUCO_OPENCV_7X7_250, ARUCO_OPENCV_7X7_1000,
+              ARUCO_ORIGINAL, APRILTAG_16H5, APRILTAG_25H9, APRILTAG_36H10, APRILTAG_36H11
+            ]
+          ids:
+            title: The marker IDs.
+            description: >
+              The IDs of the markers to look for.
+            type: array
+            items:
+              "$ref": "#/$defs/nonneginteger"
+            minItems: 4
+            maxItems: 4
+          centers:
+            title: The marker centers.
+            description: >
+              The centers of the markers corresponding to the marker IDs.
+            "$ref": "#/$defs/matrix4x2"
+            default: [ [ 0, 0 ], [ 1, 0 ], [ 1, 1 ], [ 0, 1 ] ]
+          tolerance:
+            title: The tolerance for the marker redetection.
+            description: >
+              The tolerance for the marker redetection.
+              
+              
+              The marker detection will heuristically attempt to find the markers in the vicinity of their previously
+              detected positions to speed up the computation. The tolerance defines by how much the search area is
+              enlarged with respect to the previous marker size. A value of 0.0 means that the search area is not
+              enlarged at all, which prevents successful detection in most cases since even the quiet zone around the
+              known markers is not considered. A value of 1.0 means that the search area is enlarged by 100% of the
+              previous marker size (50% in each direction).
+            "$ref": "#/$defs/nonnegnumber"
+            default: 0.5
+        required: [ dictionary, ids ]
+        additionalProperties: false
       gap:
         title: Size of the gaps in between tags.
         description: >

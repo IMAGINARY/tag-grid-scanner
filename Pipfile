@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 numpy = "*"
-opencv-python = "*"
+opencv-contrib-python = "*"
 requests = "*"
 "ruamel.yaml" = "*"
 jsonschema = "*"
@@ -18,9 +18,6 @@ json-schema-for-humans = "*"
 
 [requires]
 python_version = "3.9"
-
-[pipenv]
-allow_prereleases = true
 
 [scripts]
 tag-grid-scanner = "python runner.py"

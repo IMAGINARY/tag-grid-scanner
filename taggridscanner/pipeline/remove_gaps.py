@@ -46,7 +46,7 @@ class RemoveGaps(Functor):
         # that would otherwise be up to two rows/columns of pixels off.
         sx = tile_size_int[1] / tile_size[1]
         sy = tile_size_int[0] / tile_size[0]
-        scale_mtx = np.array([[sx, 0, 0], [0, sy, 0], [0, 0, 1]], dtype=np.float)
+        scale_mtx = np.array([[sx, 0, 0], [0, sy, 0], [0, 0, 1]], dtype=float)
         for y in range(0, self.grid_shape[0]):
             for x in range(0, self.grid_shape[1]):
                 tx = x * tile_size_with_gap[1]
@@ -57,7 +57,7 @@ class RemoveGaps(Functor):
                         [0, 1, -ty],
                         [0, 0, 1],
                     ],
-                    dtype=np.float,
+                    dtype=float,
                 )
                 mtx = np.matmul(scale_mtx, translate_mtx)[0:2, 0:3]
                 result_tile = result[

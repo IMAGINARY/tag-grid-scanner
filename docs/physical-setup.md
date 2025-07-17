@@ -81,3 +81,21 @@ overexposure issues.
 ## Camera mount
 
 The camera mount needs to be very rigid. The camera should not move at all. Otherwise, re-calibration will be necessary.
+
+# Fiducial markers
+
+The `tag-grid-scanner` can also detect fiducial markers, such as ArUco or AprilTag markers, that act as physical
+reference points for the region of interest. These markers are tracked from one frame to the next to compensate for
+camera movements after initial configuration. If all preconfigured markers are found in the distortion-corrected camera
+image, a perspective coordinate transformation (homography) is derived from the matched markers. This transformation is
+then used to map the originally configured region of interest into a valid region of interest with respect to the
+current image. In many cases, this can compensate for small to medium camera movements caused by vibrations or thermal
+expansion of the camera mount or furniture. It is highly recommended to include such fiducial markers in the physical
+setup.
+
+- The markers must be placed such that the polygon defined by the convex hull of all marker corners does not intersect
+  the tag grid.
+- The markers must be fully visible in the camera image after the lens distortion correction has been applied.
+
+The final setup may look like this:
+![Example setup with fiducial markers](images/marker.jpg)
