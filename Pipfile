@@ -4,17 +4,17 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-numpy = "~=1.0"
-opencv-contrib-python = "*"
-requests = "*"
-"ruamel.yaml" = "*"
-jsonschema = "*"
-jsonpointer = "*"
-wrapt = "*"
+numpy = "~=1.26"
+opencv-contrib-python = "~=4.11.0"
+requests = "~=2.28"
+"ruamel.yaml" = "~=0.17"
+jsonschema = "~=4.17"
+jsonpointer = "~=2.3"
+wrapt = "~=1.15"
 
 [dev-packages]
-black = "*"
-json-schema-for-humans = "*"
+black = "~=23.1"
+json-schema-for-humans = "~=0.44"
 
 [requires]
 python_version = "3.9"
