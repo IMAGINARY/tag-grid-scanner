@@ -107,7 +107,7 @@ def create_img(
 def display(args):
     config = args["config"]
     config_with_defaults = args["config-with-defaults"]
-    img_size = tuple(config_with_defaults["camera"]["size"])
+    img_size = tuple(config_with_defaults["camera"].get("size", [1920, 1080]))
     rotate = config_with_defaults["camera"]["rotate"]
     flip_h = config_with_defaults["camera"]["flipH"]
     flip_v = config_with_defaults["camera"]["flipV"]
