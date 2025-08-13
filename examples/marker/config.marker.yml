@@ -1,0 +1,53 @@
+camera:
+  # filename: recordings/marker.mp4 # A video that contains some camera movement.
+  filename: recordings/marker.0.jpg # A single frame from the start of the video.
+  # filename: recordings/marker.1.jpg # A single frame from the later in the video.
+  # filename: recordings/marker_convex_hull_test.jpg # A single frame from the video containing an additional detectable marker in the center.
+  fourcc: CYUV
+  calibration:
+    matrix: [ [ 0.8032213930332335, 0.0, 0.5074867822822676 ], [ 0.0, 1.4279872954447745,
+                                                                 0.5239124476142262 ], [ 0.0, 0.0, 1.0 ] ]
+    distortion: [ -0.39736419228645997, 0.2297775275363398, 3.2591937873295352e-06,
+                  0.0005553714121050746, -0.08855866023069262 ]
+  scale: 1
+  rotate: 0
+  flipV: false
+  flipH: false
+  smooth: 0.5
+dimensions:
+  grid: [ 16, 16 ]
+  tile: [ 4, 4 ]
+  roi: [ [ 0.17519426345825195, 0.13193045722113717 ], [ 0.8844826380411784, 0.05836320806432654 ],
+         [ 0.7917827606201172, 0.9412511754918982 ], [ 0.3093421936035156, 0.9803741455078125 ] ]
+  marker:
+    dictionary: APRILTAG_16H5
+    ids: [ 0, 1, 2, 3 ]
+    centers: [ [ 0.8294888891279697, 0.9213495252309022 ], [ 0.9380030040939649, 0.07993242828934281 ],
+               [ 0.12685532122850418, 0.1607867788385462 ], [ 0.26919475123286246, 0.9643632566487348 ] ]
+  gap: [ 0.0036, 0.0036 ]
+  crop: [ 0.65, 0.65 ]
+tags:
+  unknown: 0 # unable to detect / empty
+  '1100110011111111': 1 # road
+  '1100110000110011': 5 # park
+  '1100110011001100': 6 # water
+  '1100110001110111': 2 # residential
+  '1100110010111011': 3 # industrial
+  '1100110011011101': 4 # commercial
+#  '1100110011101110': 0 # reserved
+#  '1100110001000100': 0 # reserved
+#  '1100110010001000': 0 # reserved
+#  '1100110001010101': 0 # reserved
+#  '1100110001100110': 0 # reserved
+notify:
+  template: { }
+  assignTo: /cells
+  flipV: false
+  flipH: true
+  rotate: 180
+  stdout: false
+  stderr: false
+  remote: true
+  url: http://localhost:4848/city/map
+  repeat: true
+  interval: 3

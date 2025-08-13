@@ -1,0 +1,45 @@
+camera:
+  filename: recording.jpg
+  fps: 30
+  calibration:
+    matrix: [ [ 0.7422488446347236, 0.0, 0.4652094228057141 ], [ 0.0, 1.3182164271583625,
+                                                                 0.5896702381894995 ], [ 0.0, 0.0, 1.0 ] ]
+    distortion: [ -0.37040267031277574, 0.26260130302582685, 0.00041176711902285874,
+                  -4.76052127192263e-05, -0.17747824081413552 ]
+  scale: 0.5
+  rotate: 0
+  flipV: false
+  flipH: false
+  smooth: 0.5
+dimensions:
+  grid: [ 16, 16 ]
+  tile: [ 4, 4 ]
+  roi: [ [ 0.13567708333333334, 0.029398144444444444 ], [ 0.9063802083333333, 0.03518518518518519 ],
+         [ 0.7421875, 0.9328703703703703 ], [ 0.26015625, 0.9034722222222222 ] ]
+  gap: [ 0.0036, 0.0036 ]
+  crop: [ 0.65, 0.65 ]
+tags:
+  unknown: 0 # unable to detect / empty
+  '1100110011111111': 1 # road
+  '1100110000110011': 5 # park
+  '1100110011001100': 6 # water
+  '1100110001110111': 2 # residential
+  '1100110010111011': 3 # industrial
+  '1100110011011101': 4 # commercial
+#  '1100110011101110': 0 # reserved
+#  '1100110001000100': 0 # reserved
+#  '1100110010001000': 0 # reserved
+#  '1100110001010101': 0 # reserved
+#  '1100110001100110': 0 # reserved
+notify:
+  template: { }
+  assignTo: /cells
+  flipV: false
+  flipH: true
+  rotate: 180
+  stdout: false
+  stderr: false
+  remote: true
+  url: http://localhost:4848/city/map
+  repeat: true
+  interval: 3
