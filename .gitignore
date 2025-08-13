@@ -34,11 +34,11 @@ Temporary Items
 
 *.py[cod]
 
-config.yaml
-config.yml
-config.*.yaml
-config.*.yml
-snapshot*.jpg
-snapshot*.png
+/config.yaml
+/config.yml
+/config.*.yaml
+/config.*.yml
+/snapshot*.jpg
+/snapshot*.png
 
 /local_test_data
