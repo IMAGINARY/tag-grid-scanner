@@ -5,9 +5,9 @@ import numpy as np
 from typing import cast
 import logging
 from copy import deepcopy
+from nonblock import nonblock_read
 
 from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, set_markers, store_config
-from taggridscanner.aux.newline_detector import NewlineDetector
 from taggridscanner.aux.threading import (
     ThreadSafeValue,
     ThreadSafeContainer,
@@ -306,6 +306,16 @@ class ScanWorker(Functor):
         # print("max. {:.1f} detections per second".format(rate), file=sys.stderr)
 
 
+def has_entered_newline():
+    """Reads all data currently available on :py:attr:`sys.stdin` until the first newline character. Returns whether a newline character was among the data read."""
+    data = "0"  # fake data to enter the loop
+    while not data == "" and data is not None:
+        if data == "\n":
+            return True
+        data = nonblock_read(sys.stdin, 1, 't')
+    return False
+
+
 def scan(args):
     config_with_defaults = args["config-with-defaults"]
     if args["ignore_scale"]:
@@ -329,9 +339,7 @@ def scan(args):
     max_fps = 60
     has_window = False
 
-    newline_detector = NewlineDetector()
     if not args["no_gui"]:
-        newline_detector.start()
         print("Press ENTER to hide/show the UI.", file=sys.stderr)
 
     auto_hide_timeout = Timeout(args["auto_hide_gui"])
@@ -379,16 +387,12 @@ def scan(args):
         frame_end_ts = time.perf_counter()
         frame_time_left = max(0.0, 1.0 / max_fps - (frame_end_ts - frame_start_ts))
 
-        if not args["no_gui"]:
-            try:
-                newline_detector.result.retrieve_nowait()
-                auto_hide_timeout.reset()
-                with roi_worker.compute_visualization.condition:
-                    show_ui = not roi_worker.compute_visualization.get()
-                    roi_worker.compute_visualization.set(show_ui)
-                    force_ui_update = True if show_ui else False
-            except ThreadSafeContainer.Empty:
-                pass
+        if not args["no_gui"] and has_entered_newline():
+            auto_hide_timeout.reset()
+            with roi_worker.compute_visualization.condition:
+                show_ui = not roi_worker.compute_visualization.get()
+                roi_worker.compute_visualization.set(show_ui)
+                force_ui_update = True if show_ui else False
 
         if auto_hide_timeout.is_up():
             auto_hide_timeout.reset()

@@ -1,7 +1,6 @@
 import sys
 import cv2
 from time import sleep
-from taggridscanner.aux.newline_detector import NewlineDetector
 from taggridscanner.aux.threading import WorkerThreadWithResult, ThreadSafeContainer
 from taggridscanner.aux.utils import Timeout
 from taggridscanner.pipeline.draw_roi import DrawROI
@@ -57,9 +56,6 @@ def with_ui(retrieve_image_worker, modify_image, wait, output_filename):
 
 
 def headless(retrieve_image_worker, modify_image, wait, output_filename):
-    newline_detector = NewlineDetector()
-    newline_detector.start()
-
     if wait is not None:
         print("Waiting {}s ... ".format(wait), end="", flush=True)
         sleep(wait)
@@ -69,7 +65,10 @@ def headless(retrieve_image_worker, modify_image, wait, output_filename):
     else:
         while True:
             print("Press ENTER to take a snapshot. Abort with Ctrl+C.", file=sys.stderr)
-            newline_detector.result.retrieve()
+            try:
+                input()
+            except KeyboardInterrupt:
+                sys.exit(0)
             print(
                 "Saving snapshot to {}".format(output_filename),
                 file=sys.stderr,
