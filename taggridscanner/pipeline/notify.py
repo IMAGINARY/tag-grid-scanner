@@ -1,6 +1,8 @@
 import json
 import sys
 import jsonpointer
+import re
+import uuid
 import numpy as np
 
 from taggridscanner.aux.http_json_poster import HttpJsonPoster
@@ -19,8 +21,23 @@ class Notify(Functor):
         interval=None,
     ):
         super().__init__()
-        self.template = template
-        self.assign_to = assign_to
+
+        self.uuid = str(uuid.uuid4())
+
+        tmp_template = jsonpointer.set_pointer(template, assign_to, "", False)
+
+        # Ensure that the UUID isn't already part of the template (very unlikely, but possible)
+        while self.uuid in tmp_template:
+            self.uuid = str(uuid.uuid4())
+
+        template_with_uuid = jsonpointer.set_pointer(template, assign_to, self.uuid, False)
+        self.string_template_with_uuid = json.dumps(template_with_uuid, indent=2)
+
+        # Extract the line containing the UUID using a regex and use the length of the prefix to determine the
+        # indentation. This allows the notification to be formatted correctly in the output.
+        print(self.string_template_with_uuid)
+        prefix = re.search(r'^( *).*"{uuid}"'.format(uuid=self.uuid), self.string_template_with_uuid, re.MULTILINE)
+        self.indent = prefix.group(1)
 
         notifiers = []
         if stdout:
@@ -35,8 +52,15 @@ class Notify(Functor):
 
     def __call__(self, tag_data):
         tag_data_list = np.array(tag_data).tolist()
-        notification_obj = jsonpointer.set_pointer(self.template, self.assign_to, tag_data_list, False)
-        notification = json.dumps(notification_obj)
+
+        tag_data_list_string = (
+            "[\n{indent}  ".format(indent=self.indent)
+            + ",\n{indent}  ".format(indent=self.indent).join([json.dumps(sub_list) for sub_list in tag_data_list])
+            + "\n{indent}]".format(indent=self.indent)
+        )
+
+        notification = self.string_template_with_uuid.replace('"{uuid}"'.format(uuid=self.uuid), tag_data_list_string)
+
         self.notification_manager.notify(notification)
         return tag_data
 
