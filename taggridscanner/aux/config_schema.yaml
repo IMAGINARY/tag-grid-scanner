@@ -354,8 +354,22 @@ properties:
       purposes. The value is just an ID in most cases, but can be an arbitrary JSON object.
       The special tag `unknown` is used to deal with positions in the tag grid where no tag could be identified.
     type: object
+    properties:
+      autoRotate:
+        title: Generate the four possible tag rotations automatically.
+        description: >
+          Generate the four possible tag rotations automatically.
+
+
+          Whether to automatically generate the three other possible tag rotations for each tag using the same value.
+          If this property is set to true and the tag dictionary contains explicit definitions of different rotations
+          of the same tag, an arbitrary one of the values for the different rotation will be used. Do not rely on the
+          order in which the tags are defined in the configuration file. The processing order of dictionary keys is
+          implementation specific and, therefore, undefined from the point of view of this file format definition.
+        type: boolean
+        default: true
+      unknown: { }
     patternProperties:
-      ^unknown$: { }
       ^[01]+$: { }
     additionalProperties: false
     required: [ unknown ]

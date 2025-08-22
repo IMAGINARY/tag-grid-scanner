@@ -1,5 +1,6 @@
 import sys
 import time
+import re
 import cv2
 import numpy as np
 from typing import cast
@@ -101,14 +102,16 @@ class ScanWorker(Functor):
         tag_shape = self.config_with_defaults["dimensions"]["tile"]
         rel_gap = self.config_with_defaults["dimensions"]["gap"]
         crop_factors = self.config_with_defaults["dimensions"]["crop"]
-        tags = self.config_with_defaults["tags"]
+        is_tag_key = lambda entry: re.match('^((unknown)|([01]+))$', entry[0]) is not None
+        tags = dict(filter(is_tag_key, self.config_with_defaults["tags"].items()))
+        detect_rotations = self.config_with_defaults["tags"]["autoRotate"]
 
         self.remove_gaps = RemoveGaps(grid_shape, tag_shape, rel_gap)
         self.crop_tile_pixels = CropTileCells(grid_shape, tag_shape, crop_factors)
         self.condense_tiles = CondenseTiles(grid_shape, tag_shape)
         self.threshold = Threshold(grid_shape, tag_shape)
         self.detect_tags = DetectTags(
-            grid_shape, tag_shape, tags, detect_rotations=True
+            grid_shape, tag_shape, tags, detect_rotations=detect_rotations
         )
         self.upscale = Upscale(10)
         self.draw_grid = DrawGrid(grid_shape, tag_shape, crop_factors)
