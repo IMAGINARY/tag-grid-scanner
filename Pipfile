@@ -22,4 +22,5 @@ python_version = "3.9"
 
 [scripts]
 tag-grid-scanner = "python runner.py"
+format = "ruff format"
 generate-schema-doc = "generate-schema-doc --config-file json-schema-for-humans.yaml  taggridscanner/aux/config_schema.yaml docs/"
