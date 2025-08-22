@@ -58,9 +58,7 @@ class ScanWorker(Functor):
     def __init__(self, config_with_defaults):
         super().__init__(lambda: self.work())
         self.config_with_defaults = config_with_defaults
-        self.retrieve_image = RetrieveImage.create_from_config(
-            self.config_with_defaults
-        )
+        self.retrieve_image = RetrieveImage.create_from_config(self.config_with_defaults)
         self.preprocess = Preprocess.create_from_config(self.config_with_defaults)
 
         self.h, self.w = self.retrieve_image.scaled_size
@@ -78,9 +76,15 @@ class ScanWorker(Functor):
             rel_marker_centers = [[1.0, 1.0], [1.0, 0.0], [0.0, 0.0], [0.0, 1.0]]
 
         # Convert the relative marker center coordinates from the marker config to absolute coordinates
-        self.src_roi_markers = cast(ROIMarkers, tuple(map(lambda m: MarkerIdWithCorners(m[0], (m[1], m[1], m[1], m[1])),
-                                                          zip(marker_ids, [(c[0] * self.w, c[1] * self.h) for c in
-                                                                           rel_marker_centers]))))
+        self.src_roi_markers = cast(
+            ROIMarkers,
+            tuple(
+                map(
+                    lambda m: MarkerIdWithCorners(m[0], (m[1], m[1], m[1], m[1])),
+                    zip(marker_ids, [(c[0] * self.w, c[1] * self.h) for c in rel_marker_centers]),
+                )
+            ),
+        )
         self.dst_roi_markers = self.src_roi_markers
 
         self.draw_markers = DrawMarkers()
@@ -102,7 +106,7 @@ class ScanWorker(Functor):
         tag_shape = self.config_with_defaults["dimensions"]["tile"]
         rel_gap = self.config_with_defaults["dimensions"]["gap"]
         crop_factors = self.config_with_defaults["dimensions"]["crop"]
-        is_tag_key = lambda entry: re.match('^((unknown)|([01]+))$', entry[0]) is not None
+        is_tag_key = lambda entry: re.match("^((unknown)|([01]+))$", entry[0]) is not None
         tags = dict(filter(is_tag_key, self.config_with_defaults["tags"].items()))
         detect_rotations = self.config_with_defaults["tags"]["autoRotate"]
 
@@ -110,9 +114,7 @@ class ScanWorker(Functor):
         self.crop_tile_pixels = CropTileCells(grid_shape, tag_shape, crop_factors)
         self.condense_tiles = CondenseTiles(grid_shape, tag_shape)
         self.threshold = Threshold(grid_shape, tag_shape)
-        self.detect_tags = DetectTags(
-            grid_shape, tag_shape, tags, detect_rotations=detect_rotations
-        )
+        self.detect_tags = DetectTags(grid_shape, tag_shape, tags, detect_rotations=detect_rotations)
         self.upscale = Upscale(10)
         self.draw_grid = DrawGrid(grid_shape, tag_shape, crop_factors)
         self.draw_grid_no_crop = DrawGrid(grid_shape, tag_shape, (1, 1))
@@ -127,10 +129,12 @@ class ScanWorker(Functor):
         self.__compute_visualization = ThreadSafeValue(True)
 
         self.__tag_data = ThreadSafeContainer()
-        self.__data_for_config_export = ThreadSafeValue({
-            "roi": rel_roi_vertices,
-            "markers": self.dst_roi_markers,
-        })
+        self.__data_for_config_export = ThreadSafeValue(
+            {
+                "roi": rel_roi_vertices,
+                "markers": self.dst_roi_markers,
+            }
+        )
         self.__viz = ThreadSafeContainer()
         self.__notify = ThreadSafeValue(True)
 
@@ -237,34 +241,38 @@ class ScanWorker(Functor):
         copy_preprocessed_src = freeze_input_image or compute_visualization
 
         if needs_update:
-            preprocessed = (
-                np.copy(self.preprocessed_src)
-                if copy_preprocessed_src
-                else self.preprocessed_src
-            )
+            preprocessed = np.copy(self.preprocessed_src) if copy_preprocessed_src else self.preprocessed_src
 
             # Track markers providing the markers detected in the last iteration.
             # Searching at the previously detected marker positions first will usually speed up the detection.
             dst_roi_markers, markers_for_viz = self.track_markers(preprocessed, self.dst_roi_markers)
 
             if transformed_vertices_need_update:
-                self.transformed_vertices = self.map_roi(tuple(m.center for m in self.dst_roi_markers),
-                                                         tuple(m.center for m in self.src_roi_markers),
-                                                         self.vertices)
+                self.transformed_vertices = self.map_roi(
+                    tuple(m.center for m in self.dst_roi_markers),
+                    tuple(m.center for m in self.src_roi_markers),
+                    self.vertices,
+                )
                 logger.debug("Source ROI vertices changed. Updating ROI vertices to: %s", self.transformed_vertices)
 
             if dst_roi_markers is not None:
                 self.dst_roi_markers = dst_roi_markers
-                self.transformed_vertices = self.map_roi(tuple(m.center for m in self.dst_roi_markers),
-                                                         tuple(m.center for m in self.src_roi_markers),
-                                                         self.vertices)
+                self.transformed_vertices = self.map_roi(
+                    tuple(m.center for m in self.dst_roi_markers),
+                    tuple(m.center for m in self.src_roi_markers),
+                    self.vertices,
+                )
                 logger.debug("All markers found. Updating ROI vertices to: %s", self.transformed_vertices)
 
-            self.__data_for_config_export = ThreadSafeValue({
-                "roi": [[v[0] / self.w, v[1] / self.h] for v in self.transformed_vertices],
-                "markers": [MarkerIdWithCenter(m.id, (m.center[0] / self.w, m.center[1] / self.h)) for m in
-                            self.dst_roi_markers],
-            })
+            self.__data_for_config_export = ThreadSafeValue(
+                {
+                    "roi": [[v[0] / self.w, v[1] / self.h] for v in self.transformed_vertices],
+                    "markers": [
+                        MarkerIdWithCenter(m.id, (m.center[0] / self.w, m.center[1] / self.h))
+                        for m in self.dst_roi_markers
+                    ],
+                }
+            )
 
             extracted_roi = self.extract_roi(preprocessed, self.transformed_vertices)
             gaps_removed = self.remove_gaps(extracted_roi)
@@ -284,15 +292,13 @@ class ScanWorker(Functor):
                     preprocessed,
                     markers_for_viz["matched"],
                     markers_for_viz["remaining"],
-                    markers_for_viz["not_on_hull"]
+                    markers_for_viz["not_on_hull"],
                 )
                 roi_editor_img = self.draw_roi_editor(preprocessed_with_markers, self.transformed_vertices)
                 gaps_removed_with_grid = self.draw_grid(gaps_removed)
                 cropped_with_grid = self.draw_grid_no_crop(cropped)
                 condensed_with_grid = self.draw_grid_no_crop(self.upscale(condensed))
-                thresholded_with_grid = self.draw_grid_no_crop(
-                    self.upscale(thresholded)
-                )
+                thresholded_with_grid = self.draw_grid_no_crop(self.upscale(thresholded))
                 self.viz.set(
                     (
                         roi_editor_img,
@@ -315,7 +321,7 @@ def has_entered_newline():
     while not data == "" and data is not None:
         if data == "\n":
             return True
-        data = nonblock_read(sys.stdin, 1, 't')
+        data = nonblock_read(sys.stdin, 1, "t")
     return False
 
 
@@ -415,9 +421,7 @@ def scan(args):
             elif key == ord("f"):
                 freeze_input_image = not freeze_input_image
                 roi_worker.freeze_input_image.set(freeze_input_image)
-                print(
-                    "Freezing" if freeze_input_image else "Unfreezing", file=sys.stderr
-                )
+                print("Freezing" if freeze_input_image else "Unfreezing", file=sys.stderr)
             else:
                 auto_hide_timeout.reset()
                 if mode == "edit_roi":
@@ -426,9 +430,7 @@ def scan(args):
                         sys.exit(1)
                     elif key == 13:  # <ENTER>
                         print(
-                            "Press ENTER to save ROI to config file: {}".format(
-                                args["config-path"]
-                            ),
+                            "Press ENTER to save ROI to config file: {}".format(args["config-path"]),
                             file=sys.stderr,
                         )
                         print("Press any other key to abort.", file=sys.stderr)

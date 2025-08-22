@@ -4,7 +4,6 @@
 
 """Convenience wrapper for running bootstrap directly from source tree."""
 
-
 from taggridscanner.taggridscanner import main
 
 

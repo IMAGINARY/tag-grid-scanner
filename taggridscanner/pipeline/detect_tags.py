@@ -53,7 +53,7 @@ class DetectTags(Functor):
     def create_tag_dict(self, string_tags):
         data_for_unknown_tag = None
         tag_dict = {}
-        for (string_tag, data) in string_tags.items():
+        for string_tag, data in string_tags.items():
             if string_tag == "unknown":
                 data_for_unknown_tag = data
             else:

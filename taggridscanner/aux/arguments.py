@@ -161,9 +161,7 @@ def get_argument_parser():
         action="store_true",
         help="preprocess the image and draw the region of interest",
     )
-    parser_snapshot.add_argument(
-        "OUTFILE", nargs="?", help="file to store the snapshot"
-    )
+    parser_snapshot.add_argument("OUTFILE", nargs="?", help="file to store the snapshot")
 
     all_subparsers = [
         parser_calibrate,
@@ -183,14 +181,14 @@ def get_argument_parser():
         sub_parser.add_argument(
             "-v",
             "--verbose",
-            action='count',
+            action="count",
             default=3,
             help="increase verbosity (can be used multiple times)",
         )
         sub_parser.add_argument(
             "-q",
             "--quiet",
-            action='count',
+            action="count",
             default=0,
             help="decrease verbosity (can be used multiple times)",
         )

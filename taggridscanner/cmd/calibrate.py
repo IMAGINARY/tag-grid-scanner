@@ -40,12 +40,8 @@ class CalibrateWorker(Functor):
         self.twodpoints = []
 
         #  3D points real world coordinates
-        self.objectp3d = np.zeros(
-            (1, self.checkerboard[0] * self.checkerboard[1], 3), np.float32
-        )
-        self.objectp3d[0, :, :2] = np.mgrid[
-            0 : self.checkerboard[0], 0 : self.checkerboard[1]
-        ].T.reshape(-1, 2)
+        self.objectp3d = np.zeros((1, self.checkerboard[0] * self.checkerboard[1], 3), np.float32)
+        self.objectp3d[0, :, :2] = np.mgrid[0 : self.checkerboard[0], 0 : self.checkerboard[1]].T.reshape(-1, 2)
 
         self.good_frame_ts = time.perf_counter()
         self.last_error = float("inf")
@@ -58,9 +54,7 @@ class CalibrateWorker(Functor):
         ret, corners = cv2.findChessboardCorners(
             grayColor,
             self.checkerboard,
-            cv2.CALIB_CB_ADAPTIVE_THRESH
-            + cv2.CALIB_CB_FAST_CHECK
-            + cv2.CALIB_CB_NORMALIZE_IMAGE,
+            cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE,
         )
 
         # If desired number of corners can be detected then,
@@ -69,16 +63,12 @@ class CalibrateWorker(Functor):
         if ret:
             # Refining pixel coordinates
             # for given 2d points.
-            corners2 = cv2.cornerSubPix(
-                grayColor, corners, (11, 11), (-1, -1), self.criteria
-            )
+            corners2 = cv2.cornerSubPix(grayColor, corners, (11, 11), (-1, -1), self.criteria)
 
             # Draw and display the corners
             frame = cv2.drawChessboardCorners(frame, self.checkerboard, corners2, ret)
 
-            error, *_ = cv2.calibrateCamera(
-                [self.objectp3d], [corners2], grayColor.shape[::-1], None, None
-            )
+            error, *_ = cv2.calibrateCamera([self.objectp3d], [corners2], grayColor.shape[::-1], None, None)
 
             print("{} (tolerance: {})".format(error, self.error_tolerance))
 
@@ -88,11 +78,7 @@ class CalibrateWorker(Functor):
                 self.good_frame_ts = ts
                 self.threedpoints.append(self.objectp3d)
                 self.twodpoints.append(corners2)
-                print(
-                    "{} frames captured for calibration (error: {})".format(
-                        len(self.twodpoints), error
-                    )
-                )
+                print("{} frames captured for calibration (error: {})".format(len(self.twodpoints), error))
         return (
             frame,
             deepcopy(self.threedpoints),
@@ -119,9 +105,7 @@ def calibrate(args):
     producer.start()
     producer.result.wait()
 
-    view_calibration(
-        np.zeros((1, 1), dtype=np.uint8)
-    )  # use dummy image, just to have a window for waitKey()
+    view_calibration(np.zeros((1, 1), dtype=np.uint8))  # use dummy image, just to have a window for waitKey()
     while True:
         try:
             (frame, threedpoints, twodpoints) = producer.result.get_nowait()
@@ -137,9 +121,7 @@ def calibrate(args):
             sys.exit(1)
 
     (h, w, *_) = frame.shape
-    ret, camera_matrix, [distortion], r_vecs, t_vecs = cv2.calibrateCamera(
-        threedpoints, twodpoints, (w, h), None, None
-    )
+    ret, camera_matrix, [distortion], r_vecs, t_vecs = cv2.calibrateCamera(threedpoints, twodpoints, (w, h), None, None)
 
     res_matrix = np.array([[1 / w, 0, 0], [0, 1 / h, 0], [0, 0, 1]])
     rel_camera_matrix = np.matmul(res_matrix, camera_matrix)
@@ -156,9 +138,7 @@ def calibrate(args):
     view_calibration(undistorted)
 
     config_path = args["config-path"]
-    print(
-        "Press ENTER to save calibration profile to config file: {}".format(config_path)
-    )
+    print("Press ENTER to save calibration profile to config file: {}".format(config_path))
     print("Press any other key to abort.")
     key = cv2.waitKey()
 
@@ -166,9 +146,7 @@ def calibrate(args):
 
     if key == 13:  # <ENTER>
         print("Saving calibration profile to: {}".format(config_path))
-        modified_raw_config = set_calibration(
-            args["raw-config"], rel_camera_matrix, distortion
-        )
+        modified_raw_config = set_calibration(args["raw-config"], rel_camera_matrix, distortion)
         store_config(modified_raw_config, config_path)
     else:
         print("Aborting.")

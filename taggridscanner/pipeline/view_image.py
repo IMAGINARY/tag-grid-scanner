@@ -7,9 +7,7 @@ class ViewImage(Functor):
     def __init__(self, title=None):
         super().__init__()
         self.__window_name = str(uuid.uuid4())
-        self.__window_flags = (
-            cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO | cv2.WINDOW_GUI_NORMAL
-        )
+        self.__window_flags = cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO | cv2.WINDOW_GUI_NORMAL
         self.__title = ""
         self.__is_visible = False
         self.title = self.__window_name if title is None else title

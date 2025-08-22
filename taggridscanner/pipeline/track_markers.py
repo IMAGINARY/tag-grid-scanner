@@ -85,8 +85,9 @@ class TrackMarkers(Functor):
             logger.debug("No markers detected in the image.")
             return None, {"matched": [], "remaining": [], "not_on_hull": []}
 
-        assert len(marker_cornerss) == len(
-            marker_ids), "There must be a one-to-one correspondence between list of marker corners and marker ids."
+        assert len(marker_cornerss) == len(marker_ids), (
+            "There must be a one-to-one correspondence between list of marker corners and marker ids."
+        )
 
         # Create data structure holding connections between marker ids and corners
         # removing markers that are not in the list of marker ids.
@@ -118,25 +119,32 @@ class TrackMarkers(Functor):
         logger.debug("Markers not on hull: %s", markers_not_on_hull)
 
         matched_markers = list(
-            map(lambda m_id: next((m for m in markers_on_hull if m_id == m.id), None), roi_marker_ids))
+            map(lambda m_id: next((m for m in markers_on_hull if m_id == m.id), None), roi_marker_ids)
+        )
         logger.debug("Matched markers: %s", matched_markers)
 
         remaining_markers = list(filter(lambda m: m not in matched_markers, markers_on_hull))
         logger.debug("Remaining markers: %s", remaining_markers)
 
         if None in matched_markers:
-            unmatched_ids = [id_and_match[0] for id_and_match in zip(roi_marker_ids, matched_markers) if
-                             id_and_match[1] is None]
+            unmatched_ids = [
+                id_and_match[0] for id_and_match in zip(roi_marker_ids, matched_markers) if id_and_match[1] is None
+            ]
             logger.warning("Not all markers were detected (missing ids: %s).", unmatched_ids)
             matched_markers_without_none = list(filter(lambda m: m is not None, matched_markers))
-            return None, {"matched": matched_markers_without_none, "remaining": remaining_markers,
-                          "not_on_hull": markers_not_on_hull}
+            return None, {
+                "matched": matched_markers_without_none,
+                "remaining": remaining_markers,
+                "not_on_hull": markers_not_on_hull,
+            }
 
-        return tuple(matched_markers), {"matched": matched_markers, "remaining": remaining_markers,
-                                        "not_on_hull": markers_not_on_hull}
+        return tuple(matched_markers), {
+            "matched": matched_markers,
+            "remaining": remaining_markers,
+            "not_on_hull": markers_not_on_hull,
+        }
 
-    def redetect_marker(self, image, marker: MarkerIdWithCorners, tolerance: float) \
-            -> Union[MarkerIdWithCorners, None]:
+    def redetect_marker(self, image, marker: MarkerIdWithCorners, tolerance: float) -> Union[MarkerIdWithCorners, None]:
         """
         Redetects a known marker in the neighborhood of its original positions.
 
@@ -168,11 +176,16 @@ class TrackMarkers(Functor):
         ecw = clamp(ex + ew, 0, iw) - ex
         ech = clamp(ey + eh, 0, ih) - ey
 
-        logger.debug("Attempting redetection of marker %s in slice %s (tolerance: %f, unclipped: %s)",
-                     marker.id, (ecx, ecy, ecw, ech), tolerance, (ex, ey, ew, eh))
+        logger.debug(
+            "Attempting redetection of marker %s in slice %s (tolerance: %f, unclipped: %s)",
+            marker.id,
+            (ecx, ecy, ecw, ech),
+            tolerance,
+            (ex, ey, ew, eh),
+        )
 
         # Extract the region of interest from the image.
-        roi = image[ecy:ecy + ech, ecx:ecx + ecw]
+        roi = image[ecy : ecy + ech, ecx : ecx + ecw]
 
         # Detect markers in the ROI.
         marker_cornerss, marker_ids, _ = self.detector.detectMarkers(roi)
@@ -182,8 +195,9 @@ class TrackMarkers(Functor):
             logger.debug("No markers detected in the region around marker %s.", marker.id)
             return None
 
-        assert len(marker_cornerss) == len(
-            marker_ids), "There must be a one-to-one correspondence between list of marker corners and marker ids."
+        assert len(marker_cornerss) == len(marker_ids), (
+            "There must be a one-to-one correspondence between list of marker corners and marker ids."
+        )
 
         # Iterate through detected markers to find the one that matches the original marker.
         # If a match is found, return the marker with its original corners.

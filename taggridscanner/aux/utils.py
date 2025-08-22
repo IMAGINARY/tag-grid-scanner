@@ -3,15 +3,11 @@ import numpy as np
 
 
 def abs_corners_to_rel_corners(abs_corners, img_shape):
-    return np.apply_along_axis(
-        lambda p: [p[0] / img_shape[1], p[1] / img_shape[0]], 1, abs_corners
-    )
+    return np.apply_along_axis(lambda p: [p[0] / img_shape[1], p[1] / img_shape[0]], 1, abs_corners)
 
 
 def rel_corners_to_abs_corners(rel_corners, img_shape):
-    return np.apply_along_axis(
-        lambda p: [p[0] * img_shape[1], p[1] * img_shape[0]], 1, rel_corners
-    )
+    return np.apply_along_axis(lambda p: [p[0] * img_shape[1], p[1] * img_shape[0]], 1, rel_corners)
 
 
 class Functor(object):
@@ -54,12 +50,7 @@ def join_tiles(tiles):
 
 
 def compatible(image1, image2):
-    return (
-        image1 is not None
-        and image2 is not None
-        and image1.shape == image2.shape
-        and image1.dtype == image2.dtype
-    )
+    return image1 is not None and image2 is not None and image1.shape == image2.shape and image1.dtype == image2.dtype
 
 
 class Timeout(object):

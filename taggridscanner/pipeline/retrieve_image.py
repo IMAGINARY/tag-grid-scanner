@@ -81,9 +81,7 @@ class RetrieveImage:
             ret = False
             while not ret:
                 reconnection_ts = time.perf_counter()
-                reconnection_delay = self.reconnection_delay - (
-                    reconnection_ts - self.__last_reconnection_ts
-                )
+                reconnection_delay = self.reconnection_delay - (reconnection_ts - self.__last_reconnection_ts)
                 self.__last_reconnection_ts = reconnection_ts
                 if reconnection_delay > 0:
                     time.sleep(reconnection_delay)
@@ -151,9 +149,7 @@ class RetrieveImage:
 
         scale = camera_config["scale"]
 
-        return RetrieveImage(
-            source, props=props, scale=scale, smooth=camera_config["smooth"]
-        )
+        return RetrieveImage(source, props=props, scale=scale, smooth=camera_config["smooth"])
 
 
 def create_prescaler(scale):

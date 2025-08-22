@@ -5,14 +5,10 @@ from taggridscanner.aux.utils import Functor
 
 
 class Preprocess(Functor):
-    def __init__(
-        self, rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
-    ):
+    def __init__(self, rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v):
         super().__init__()
 
-        self.correct_distortion = create_distortion_corrector(
-            rel_camera_matrix, distortion_coefficients
-        )
+        self.correct_distortion = create_distortion_corrector(rel_camera_matrix, distortion_coefficients)
         self.linear_transform = create_linear_transformer(rotate, flip_h, flip_v)
 
     def __call__(self, image):
@@ -32,9 +28,7 @@ class Preprocess(Functor):
             camera_config["flipH"],
             camera_config["flipV"],
         )
-        return Preprocess(
-            rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v
-        )
+        return Preprocess(rel_camera_matrix, distortion_coefficients, rotate, flip_h, flip_v)
 
 
 def get_rotate_code(degrees):
@@ -93,9 +87,7 @@ def create_distortion_corrector(rel_camera_matrix, distortion_coefficients):
             h, w, *_ = img.shape
             res_matrix = np.array([[w, 0, 0], [0, h, 0], [0, 0, 1]])
             abs_camera_matrix = np.matmul(res_matrix, rel_camera_matrix)
-            return cv2.undistort(
-                img, abs_camera_matrix, distortion_coefficients, None, None
-            )
+            return cv2.undistort(img, abs_camera_matrix, distortion_coefficients, None, None)
 
         return undistort
     else:

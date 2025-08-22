@@ -35,9 +35,7 @@ class Notify(Functor):
 
     def __call__(self, tag_data):
         tag_data_list = np.array(tag_data).tolist()
-        notification_obj = jsonpointer.set_pointer(
-            self.template, self.assign_to, tag_data_list, False
-        )
+        notification_obj = jsonpointer.set_pointer(self.template, self.assign_to, tag_data_list, False)
         notification = json.dumps(notification_obj)
         self.notification_manager.notify(notification)
         return tag_data

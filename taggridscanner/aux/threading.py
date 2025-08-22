@@ -38,9 +38,7 @@ class ThreadSafeContainer(object):
 
     def __init__(self, *args):
         super().__init__()
-        self.__content, self.__is_full = (
-            (args[0], True) if len(args) > 0 else (None, False)
-        )
+        self.__content, self.__is_full = (args[0], True) if len(args) > 0 else (None, False)
         self.__condition = threading.Condition()
 
     @property
@@ -122,9 +120,7 @@ class WorkerThread(object):
         with self.__thread_lock:
             if self.__thread is None:
                 self.__should_stop = False
-                self.__thread = threading.Thread(
-                    target=lambda: self.run(), daemon=self.is_daemon
-                )
+                self.__thread = threading.Thread(target=lambda: self.run(), daemon=self.is_daemon)
                 self.__thread.start()
 
     def stop(self):

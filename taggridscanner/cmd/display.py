@@ -116,9 +116,7 @@ def display(args):
     grid_shape = tuple(config_with_defaults["dimensions"]["grid"])
     rel_gap = tuple(config_with_defaults["dimensions"]["gap"])
 
-    np_tags = [
-        string_tag_to_np_tag(t, tag_shape) for t in config["tags"] if t != "unknown"
-    ]
+    np_tags = [string_tag_to_np_tag(t, tag_shape) for t in config["tags"] if t != "unknown"]
 
     rel_border_size = (0.1, 0.1)
 

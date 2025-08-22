@@ -111,9 +111,9 @@ def get_roi_aspect_ratio(config):
         grid_shape[1] * tile_shape[1] * gap[1],
         grid_shape[0] * tile_shape[0] * gap[0],
     )
-    target_aspect_ratio = (
-        grid_shape[1] * tile_shape[1] * (1 + abs_gap[1]) - abs_gap[1]
-    ) / (grid_shape[0] * tile_shape[0] * (1 + abs_gap[0]) - abs_gap[0])
+    target_aspect_ratio = (grid_shape[1] * tile_shape[1] * (1 + abs_gap[1]) - abs_gap[1]) / (
+        grid_shape[0] * tile_shape[0] * (1 + abs_gap[0]) - abs_gap[0]
+    )
     return target_aspect_ratio
 
 

@@ -41,9 +41,7 @@ class DrawGrid(Functor):
             for x in range(0, self.grid_shape[1] * self.tag_shape[1]):
                 x_start = int(cell_size[1] * x)
                 x_end = int(cell_size[1] * (x + 1))
-                result[y_start + y : y_end + y, x_start + x : x_end + x] = img[
-                    y_start:y_end, x_start:x_end
-                ]
+                result[y_start + y : y_end + y, x_start + x : x_end + x] = img[y_start:y_end, x_start:x_end]
 
                 cv2.rectangle(
                     result,

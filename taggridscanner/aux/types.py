@@ -26,10 +26,13 @@ class MarkerIdWithCorners(MarkerIdWithCenter):
     """Class for storing the corners of a marker."""
 
     def __init__(self, id: int, corners: Point2f4):
-        super().__init__(id, (
-            (corners[0][0] + corners[1][0] + corners[2][0] + corners[3][0]) / 4,
-            (corners[0][1] + corners[1][1] + corners[2][1] + corners[3][1]) / 4
-        ))
+        super().__init__(
+            id,
+            (
+                (corners[0][0] + corners[1][0] + corners[2][0] + corners[3][0]) / 4,
+                (corners[0][1] + corners[1][1] + corners[2][1] + corners[3][1]) / 4,
+            ),
+        )
         self.corners = corners
 
     corners: Point2f4
