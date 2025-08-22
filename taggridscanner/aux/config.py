@@ -95,7 +95,6 @@ def preprocess_config(config, config_path):
 
     if "marker" in config["dimensions"]:
         marker_dict = get_marker_dict(config["dimensions"]["marker"]["dictionary"])
-        print(dir(marker_dict))
         assert marker_dict is not None
         config["dimensions"]["marker"]["dictionary"] = marker_dict
 
