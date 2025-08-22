@@ -108,12 +108,13 @@ class ScanWorker(Functor):
         crop_factors = self.config_with_defaults["dimensions"]["crop"]
         is_tag_key = lambda entry: re.match("^((unknown)|([01]+))$", entry[0]) is not None
         tags = dict(filter(is_tag_key, self.config_with_defaults["tags"].items()))
+        min_contrast = self.config_with_defaults["misc"]["minContrast"]
         detect_rotations = self.config_with_defaults["tags"]["autoRotate"]
 
         self.remove_gaps = RemoveGaps(grid_shape, tag_shape, rel_gap)
         self.crop_tile_pixels = CropTileCells(grid_shape, tag_shape, crop_factors)
         self.condense_tiles = CondenseTiles(grid_shape, tag_shape)
-        self.threshold = Threshold(grid_shape, tag_shape)
+        self.threshold = Threshold(grid_shape, tag_shape, min_contrast)
         self.detect_tags = DetectTags(grid_shape, tag_shape, tags, detect_rotations=detect_rotations)
         self.upscale = Upscale(10)
         self.draw_grid = DrawGrid(grid_shape, tag_shape, crop_factors)

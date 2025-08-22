@@ -353,6 +353,8 @@ properties:
       pixels line by line (top-left to bottom-right). Each tag has a value assigned that is used for notification
       purposes. The value is just an ID in most cases, but can be an arbitrary JSON object.
       The special tag `unknown` is used to deal with positions in the tag grid where no tag could be identified.
+      Note that tags consisting of only 0s or only 1s are not allowed, since these are be incompatible with the
+      thresholding process.
     type: object
     properties:
       autoRotate:
@@ -370,7 +372,7 @@ properties:
         default: true
       unknown: { }
     patternProperties:
-      ^[01]+$: { }
+      ^(?!0+$|1+$)([01]+)$: { }
     additionalProperties: false
     required: [ unknown ]
     default:
@@ -458,4 +460,24 @@ properties:
               const: true
         then:
           required: [ interval ]
+  misc:
+    title: Miscellaneous options.
+    description: Miscellaneous options.
+    type: object
+    properties:
+      minContrast:
+        title: Minimum contrast within a tile to be classified to any tag ID besides `unknown`.
+        description: >
+          Minimum contrast within a tile to be classified to any tag ID besides `unknown`.
+          
+          
+          When a tray does not contain any tile, the colors respectively gray values within that tray will usually be
+          very similar. How similar they are depends mostly on the lighting conditions and the noise in the camera 
+          image. After binarization, such tiles may still be classified as valid tags, even though they should be
+          classified as `unknown`. The `minContrast` option provides a mechanism to prevent this by requiring a
+          minimum contrast within a tile to be classified to any tag ID besides `unknown`. The contrast
+          is defined as the difference between the maximum and minimum gray value within a tile.
+        "$ref": "#/$defs/number01"
+        default: 0.0
+    default: { }
 default: { }
