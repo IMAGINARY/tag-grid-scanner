@@ -12,7 +12,6 @@ from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, set_markers
 from taggridscanner.aux.threading import (
     ThreadSafeValue,
     ThreadSafeContainer,
-    WorkerThreadWithResult,
     WorkerThread,
 )
 from taggridscanner.aux.utils import (
