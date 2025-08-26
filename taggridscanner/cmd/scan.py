@@ -445,7 +445,7 @@ def scan(args):
                         data_for_config_export = roi_worker.data_for_config_export.get()
                         logger.info("Updating ROI in config file.")
                         set_roi(args["raw-config"], data_for_config_export["roi"])
-                        if "dimensions" in args["raw-config"] and "markers" in args["raw-config"]["dimensions"]:
+                        if "dimensions" in args["raw-config"] and "marker" in args["raw-config"]["dimensions"]:
                             logger.info("Updating markers in config file.")
                             set_markers(args["raw-config"], data_for_config_export["markers"])
                         else:
