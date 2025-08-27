@@ -68,6 +68,6 @@ class HttpJsonPoster:
                 timeout=timeout,
             ) as r:
                 if not r.status_code == 200:
-                    print(error_msg, r.status_code, r.reason, url, data, file=sys.stderr)
+                    print(error_msg, r.status_code, r.reason, r.text, url, data, file=sys.stderr)
         except requests.RequestException as e:
             print(error_msg, e, url, data, file=sys.stderr)
