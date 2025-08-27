@@ -1,8 +1,11 @@
 import cv2
 import numpy as np
+import logging
 
 from taggridscanner.aux.utils import Functor
-from taggridscanner.aux.types import Point2f4, Point2f
+from taggridscanner.aux.types import Point2f4
+
+logger = logging.getLogger(__name__)
 
 
 class MapROI(Functor):
@@ -25,6 +28,10 @@ class MapROI(Functor):
 
         # Compute a transformation matrix from the initial plane to the new plane
         transformation_matrix_np = cv2.getPerspectiveTransform(dst_plane_np, src_plane_np)
+
+        logger.debug("Dst points: %s", dst_plane_np)
+        logger.debug("Src points: %s", src_plane_np)
+        logger.debug("Applying homography matrix: %s", transformation_matrix_np)
 
         # Map the ROI vertices using the transformation matrix
         mapped_roi_np = cv2.perspectiveTransform(roi_vertices_np, transformation_matrix_np)

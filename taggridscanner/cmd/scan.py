@@ -61,12 +61,14 @@ class ScanWorker(Functor):
         self.preprocess = Preprocess.create_from_config(self.config_with_defaults)
 
         self.h, self.w = self.retrieve_image.scaled_size
+        logger.debug("Scaled image size: width=%d, height=%d", self.w, self.h)
 
         if "marker" in self.config_with_defaults["dimensions"]:
             marker_config = self.config_with_defaults["dimensions"]["marker"]
             self.track_markers = TrackMarkers(marker_config["dictionary"], marker_config["tolerance"])
             marker_ids = marker_config["ids"]
             rel_marker_centers = marker_config["centers"]
+            logger.debug("Marker config found in the configuration file: %s", marker_config)
         else:
             logger.info("No marker config found in the configuration file. Disabling marker tracking.")
             # Use a fake track markers implementation
@@ -84,6 +86,7 @@ class ScanWorker(Functor):
                 )
             ),
         )
+        logger.debug("Source ROI markers: %s", self.src_roi_markers)
         self.dst_roi_markers = self.src_roi_markers
 
         self.draw_markers = DrawMarkers()
@@ -311,8 +314,9 @@ class ScanWorker(Functor):
                 )
 
         end_ts = time.perf_counter()
-        rate = 1.0 / (end_ts - start_ts)
-        # print("max. {:.1f} detections per second".format(rate), file=sys.stderr)
+        frame_time = end_ts - start_ts
+        rate = 1.0 / frame_time
+        logger.debug("Frame time: %.1fms (%.1f fps when not rate-limited)", frame_time * 1000, rate)
 
 
 def has_entered_newline():
@@ -447,6 +451,7 @@ def scan(args):
                         set_roi(args["raw-config"], data_for_config_export["roi"])
                         if "dimensions" in args["raw-config"] and "marker" in args["raw-config"]["dimensions"]:
                             logger.info("Updating markers in config file.")
+                            logger.debug("New markers (relative coordinates): %s", data_for_config_export["markers"])
                             set_markers(args["raw-config"], data_for_config_export["markers"])
                         else:
                             logger.info("Config file has no markers section. Skipping marker update.")

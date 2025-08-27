@@ -205,8 +205,9 @@ class TrackMarkers(Functor):
             if marker_id == marker.id:
                 assert len(marker_corners) == 4, "There must be exactly 4 marker corners."
                 marker_corners_tuple = tuple(map(lambda p: (p[0] + ecx, p[1] + ecy), marker_corners))
-                logger.debug("Redetected marker %s at %s", marker_id, marker_corners_tuple)
-                return MarkerIdWithCorners(marker_id, marker_corners_tuple)
+                redetected_marker = MarkerIdWithCorners(marker_id, marker_corners_tuple)
+                logger.debug("Redetected marker %s: %s", marker_id, redetected_marker)
+                return redetected_marker
 
         # If no match is found, return None.
         logger.debug("Marker %s not found in the redetection region.", marker.id)
