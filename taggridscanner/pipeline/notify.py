@@ -35,7 +35,6 @@ class Notify(Functor):
 
         # Extract the line containing the UUID using a regex and use the length of the prefix to determine the
         # indentation. This allows the notification to be formatted correctly in the output.
-        print(self.string_template_with_uuid)
         prefix = re.search(r'^( *).*"{uuid}"'.format(uuid=self.uuid), self.string_template_with_uuid, re.MULTILINE)
         self.indent = prefix.group(1)
 

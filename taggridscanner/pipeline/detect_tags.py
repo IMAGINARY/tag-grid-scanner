@@ -42,7 +42,6 @@ class DetectTags(Functor):
     def detect_tag(self, tile):
         string_tag = np_tag_to_string_tag(tile, self.__tag_shape)
         tag_data = self.__tag_dict.get(string_tag, self.__data_for_unknown_tag)
-        # print(tile, string_tag, tag_data)
         if False and tag_data == 0:
             quit()
         return tag_data
