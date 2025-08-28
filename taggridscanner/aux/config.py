@@ -207,7 +207,7 @@ def set_markers(raw_config, markers):
             ids_config[j] = int(markers[j].id)
 
     if "centers" not in marker_config:
-        marker_config["centers"] = [list(m.center) for m in markers]
+        marker_config["centers"] = [[float(v) for v in m.center] for m in markers]
     else:
         centers_config = marker_config["centers"]
         # copy element-wise to preserve YAML formatting
