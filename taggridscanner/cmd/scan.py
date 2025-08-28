@@ -195,7 +195,14 @@ class ScanWorker(Functor):
 
             def offset_current_vertex(offset_2d):
                 nonlocal transformed_vertices_need_update
-                transformed_vertices_need_update = True
+
+                # Use the current view (as derived from the marker positions and the previously configured ROI)
+                # as the new base for vertex manipulation and future detection iterations.
+                self.vertices = np.asarray(self.transformed_vertices)
+                self.src_roi_markers = self.dst_roi_markers
+                transformed_vertices_need_update = True  # Because we change the ROI input vertices
+
+                # Offset the currently selected vertex by the given 2D offset
                 self.vertices[self.idx][0] += offset_2d[0]
                 self.vertices[self.idx][1] += offset_2d[1]
 
