@@ -44,7 +44,7 @@ def get_marker_dict(marker_dict_name):
 
 
 ARUCO_PARAMETERS = aruco.DetectorParameters()
-ARUCO_PARAMETERS.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
+ARUCO_PARAMETERS.cornerRefinementMethod = aruco.CORNER_REFINE_APRILTAG
 
 
 class TrackMarkers(Functor):
