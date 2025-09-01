@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import re
@@ -6,7 +7,6 @@ import numpy as np
 from typing import cast
 import logging
 from copy import deepcopy
-from nonblock import nonblock_read
 
 from taggridscanner.aux.config import get_roi_aspect_ratio, set_roi, set_markers, store_config
 from taggridscanner.aux.threading import (
@@ -328,12 +328,15 @@ class ScanWorker(Functor):
 
 def has_entered_newline():
     """Reads all data currently available on :py:attr:`sys.stdin` until the first newline character. Returns whether a newline character was among the data read."""
+    was_blocking = os.get_blocking(sys.stdin.fileno())
+    os.set_blocking(sys.stdin.fileno(), False)
     data = "0"  # fake data to enter the loop
-    while not data == "" and data is not None:
-        if data == "\n":
-            return True
-        data = nonblock_read(sys.stdin, 1, "t")
-    return False
+    try:
+        while data is not None and data != b"\n":
+            data = sys.stdin.buffer.read(1)
+    finally:
+        os.set_blocking(sys.stdin.fileno(), was_blocking)
+        return data == b"\n"
 
 
 def scan(args):
