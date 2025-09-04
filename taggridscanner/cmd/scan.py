@@ -221,6 +221,10 @@ class ScanWorker(Functor):
                 ord("A"): lambda: offset_current_vertex((-vert_step_big, 0)),
                 ord("S"): lambda: offset_current_vertex((0, +vert_step_big)),
                 ord("D"): lambda: offset_current_vertex((+vert_step_big, 0)),
+                ord("i"): lambda: offset_current_vertex((0, -vert_step_big)),
+                ord("j"): lambda: offset_current_vertex((-vert_step_big, 0)),
+                ord("k"): lambda: offset_current_vertex((0, +vert_step_big)),
+                ord("l"): lambda: offset_current_vertex((+vert_step_big, 0)),
                 32: next_vertex,
                 ord("c"): reset_vertices,
             }
