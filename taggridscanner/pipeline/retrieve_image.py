@@ -153,7 +153,7 @@ class RetrieveImage:
 
 
 def create_prescaler(scale):
-    if scale == [1.0, 1.0]:
+    if list(scale) == [1.0, 1.0]:
         return lambda img: img  # noop
     else:
 
