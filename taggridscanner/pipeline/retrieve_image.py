@@ -15,6 +15,7 @@ class RetrieveImage:
         reconnection_delay=0.5,
         scale=(1.0, 1.0),
         smooth=0.0,
+        grayscale=True,
     ):
         super().__init__()
         if props is None:
@@ -26,6 +27,7 @@ class RetrieveImage:
         self.__prescale = None
         self.scale = scale  # this also initializes the prescaler
         self.smooth = smooth
+        self.grayscale = grayscale
         self.props = props
         self.capture = cv2.VideoCapture()
         self.__last_reconnection_ts = float("-inf")
@@ -63,6 +65,9 @@ class RetrieveImage:
                 ret, image = self.__read_from_capture()
 
             if ret:
+                if self.grayscale and len(image.shape) == 3:
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
                 if not compatible(self.__last_image, image) or self.smooth == 0.0:
                     self.__last_image = image
                 else:
@@ -147,9 +152,13 @@ class RetrieveImage:
             fps = camera_config["fps"]
             props.append((cv2.CAP_PROP_FPS, fps))
 
-        scale = camera_config["scale"]
-
-        return RetrieveImage(source, props=props, scale=scale, smooth=camera_config["smooth"])
+        return RetrieveImage(
+            source,
+            props=props,
+            scale=camera_config["scale"],
+            smooth=camera_config["smooth"],
+            grayscale=camera_config["grayscale"],
+        )
 
 
 def create_prescaler(scale):

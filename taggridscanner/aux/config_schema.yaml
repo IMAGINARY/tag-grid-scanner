@@ -146,6 +146,18 @@ properties:
         type: string
         minLength: 4
         maxLength: 4
+      grayscale:
+        title: Whether to convert the camera image to grayscale.
+        description: >
+          Whether to convert the camera image to grayscale.
+          
+          
+          The tag detection supports both, color and grayscale images. However, grayscale images can be processed faster.
+          Since most cameras do not provide grayscale images directly, this option can be used to convert the color
+          images to grayscale directly after retrieving it from the camera. This will considerably reduce memory
+          consumption and processing time.
+        type: boolean
+        default: true
       calibration:
         title: Calibration data to remove distortion from the image.
         description:
