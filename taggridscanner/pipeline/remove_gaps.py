@@ -12,57 +12,40 @@ class RemoveGaps(Functor):
         self.tag_shape = tag_shape
         self.rel_gap = rel_gap
 
+        self.last_image_shape = None
+        self.operator = None
+
+    def sample_tiles_along_axis(self, image_size_along_axis, axis):
+        assert axis in (0, 1), "Axis must be 0 (y) or 1 (x)"
+
+        gap_size = image_size_along_axis * self.rel_gap[axis]
+        padded_img_size = image_size_along_axis + gap_size
+        tile_size_with_gap = padded_img_size / self.grid_shape[axis]
+        tile_size = tile_size_with_gap - gap_size
+        tile_size_int = math.ceil(tile_size / self.tag_shape[axis]) * self.tag_shape[axis]
+
+        samples = np.zeros(self.grid_shape[axis] * tile_size_int, dtype=np.float32)
+        for i in range(self.grid_shape[axis]):
+            start = i * tile_size_with_gap
+            end = start + tile_size
+            start_idx = i * tile_size_int
+            end_idx = (i + 1) * tile_size_int
+            samples[start_idx:end_idx] = np.linspace(start, end, tile_size_int, dtype=np.float32)
+
+        return samples
+
+    def create_operator(self, image_shape):
+        samples_x = self.sample_tiles_along_axis(image_shape[1], 1)
+        samples_y = self.sample_tiles_along_axis(image_shape[0], 0)
+
+        map_x = np.repeat(samples_x.reshape((1, samples_x.shape[0])), samples_y.shape[0], axis=0)
+        map_y = np.repeat(samples_y.reshape((samples_y.shape[0], 1)), samples_x.shape[0], axis=1)
+
+        return lambda image: cv2.remap(image, map_x, map_y, cv2.INTER_LINEAR)
+
     def __call__(self, image):
-        gap_size = (image.shape[0] * self.rel_gap[0], image.shape[1] * self.rel_gap[1])
-        padded_img_size = (
-            image.shape[0] + gap_size[0],
-            image.shape[1] + gap_size[1],
-        )
-        tile_size_with_gap = (
-            padded_img_size[0] / self.grid_shape[0],
-            padded_img_size[1] / self.grid_shape[1],
-        )
-        tile_size = (
-            tile_size_with_gap[0] - gap_size[0],
-            tile_size_with_gap[1] - gap_size[1],
-        )
+        if self.last_image_shape != image.shape or self.operator is None:
+            self.operator = self.create_operator(image.shape)
+            self.last_image_shape = image.shape
 
-        tile_size_int = (
-            math.ceil(tile_size[0] / self.tag_shape[0]) * self.tag_shape[0],
-            math.ceil(tile_size[1] / self.tag_shape[1]) * self.tag_shape[1],
-        )
-        result_shape = (
-            self.grid_shape[0] * tile_size_int[0],
-            self.grid_shape[1] * tile_size_int[1],
-        )
-        assert len(image.shape) in [2, 3]
-        if len(image.shape) == 3:
-            result_shape = (*result_shape, image.shape[2])
-        result = np.zeros(result_shape, dtype=image.dtype)
-
-        # The following is a workaround to make all tiles equal size
-        # and deal with non-integer gap sizes properly.
-        # This makes computations later in the pipeline more precise
-        # that would otherwise be up to two rows/columns of pixels off.
-        sx = tile_size_int[1] / tile_size[1]
-        sy = tile_size_int[0] / tile_size[0]
-        scale_mtx = np.array([[sx, 0, 0], [0, sy, 0], [0, 0, 1]], dtype=float)
-        for y in range(0, self.grid_shape[0]):
-            for x in range(0, self.grid_shape[1]):
-                tx = x * tile_size_with_gap[1]
-                ty = y * tile_size_with_gap[0]
-                translate_mtx = np.array(
-                    [
-                        [1, 0, -tx],
-                        [0, 1, -ty],
-                        [0, 0, 1],
-                    ],
-                    dtype=float,
-                )
-                mtx = np.matmul(scale_mtx, translate_mtx)[0:2, 0:3]
-                result_tile = result[
-                    y * tile_size_int[0] : (y + 1) * tile_size_int[0],
-                    x * tile_size_int[1] : (x + 1) * tile_size_int[1],
-                ]
-                cv2.warpAffine(image, mtx, tile_size_int, dst=result_tile)
-        return result
+        return self.operator(image)
