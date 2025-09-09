@@ -12,41 +12,42 @@ class CropTileCells(Functor):
         self.tag_shape = tag_shape
         self.crop_factors = crop_factors
 
-    def __call__(self, img):
-        cell_size = (
-            img.shape[0] / (self.grid_shape[0] * self.tag_shape[0]),
-            img.shape[1] / (self.grid_shape[0] * self.tag_shape[1]),
-        )
+        self.last_image_shape = None
+        self.operator = None
 
-        cropped_cell_size = (
-            cell_size[0] * self.crop_factors[0],
-            cell_size[1] * self.crop_factors[1],
-        )
+    def sample_tiles_along_axis(self, image_size_along_axis, axis):
+        assert axis in (0, 1), "Axis must be 0 (y) or 1 (x)"
 
-        cropped_cell_size_int = (
-            math.ceil(cropped_cell_size[0]),
-            math.ceil(cropped_cell_size[1]),
-        )
+        num_cells = self.grid_shape[axis] * self.tag_shape[axis]
+        crop_factor = self.crop_factors[axis]
 
-        result_shape = (
-            cropped_cell_size_int[0] * self.grid_shape[0] * self.tag_shape[0],
-            cropped_cell_size_int[1] * self.grid_shape[1] * self.tag_shape[1],
-        )
-        assert len(img.shape) in [2, 3]
-        if len(img.shape) == 3:
-            result_shape = (*result_shape, img.shape[2])
-        result = np.zeros(result_shape, dtype=img.dtype)
+        cell_size = image_size_along_axis / num_cells
+        cropped_cell_size = cell_size * crop_factor
+        cropped_cell_size_int = math.ceil(cropped_cell_size)
+        half_crop_size = (cell_size - cropped_cell_size) / 2
 
-        for y in range(0, self.grid_shape[0] * self.tag_shape[0]):
-            for x in range(0, self.grid_shape[1] * self.tag_shape[1]):
-                result_tile = result[
-                    y * cropped_cell_size_int[0] : (y + 1) * cropped_cell_size_int[0],
-                    x * cropped_cell_size_int[1] : (x + 1) * cropped_cell_size_int[1],
-                ]
-                cv2.getRectSubPix(
-                    img,
-                    cropped_cell_size_int,
-                    ((x + 0.5) * cell_size[1], (y + 0.5) * cell_size[0]),
-                    patch=result_tile,
-                )
-        return result
+        samples = np.zeros(num_cells * cropped_cell_size_int, dtype=np.float32)
+        for i in range(num_cells):
+            start = i * cell_size + half_crop_size
+            end = start + cropped_cell_size
+            start_idx = i * cropped_cell_size_int
+            end_idx = (i + 1) * cropped_cell_size_int
+            samples[start_idx:end_idx] = np.linspace(start, end, cropped_cell_size_int, dtype=np.float32)
+
+        return samples
+
+    def create_operator(self, image_shape):
+        samples_x = self.sample_tiles_along_axis(image_shape[1], 1)
+        samples_y = self.sample_tiles_along_axis(image_shape[0], 0)
+
+        map_x = np.repeat(samples_x.reshape((1, samples_x.shape[0])), samples_y.shape[0], axis=0)
+        map_y = np.repeat(samples_y.reshape((samples_y.shape[0], 1)), samples_x.shape[0], axis=1)
+
+        return lambda image: cv2.remap(image, map_x, map_y, cv2.INTER_LINEAR)
+
+    def __call__(self, image):
+        if self.last_image_shape != image.shape or self.operator is None:
+            self.operator = self.create_operator(image.shape)
+            self.last_image_shape = image.shape
+
+        return self.operator(image)
