@@ -82,12 +82,19 @@ def create_inverse_linear_transformer(rotate, flip_h, flip_v):
 
 def create_distortion_corrector(rel_camera_matrix, distortion_coefficients):
     if rel_camera_matrix is not None and distortion_coefficients is not None:
+        h, w, map_x, map_y = None, None, None, None
 
         def undistort(img):
-            h, w, *_ = img.shape
-            res_matrix = np.array([[w, 0, 0], [0, h, 0], [0, 0, 1]])
-            abs_camera_matrix = np.matmul(res_matrix, rel_camera_matrix)
-            return cv2.undistort(img, abs_camera_matrix, distortion_coefficients, None, None)
+            nonlocal h, w, map_x, map_y
+            if (h, w) != img.shape[0:2] or map_x is None or map_y is None:
+                h, w = img.shape[0:2]
+                res_matrix = np.array([[w, 0, 0], [0, h, 0], [0, 0, 1]])
+                abs_camera_matrix = np.matmul(res_matrix, rel_camera_matrix)
+                map_x, map_y = cv2.initUndistortRectifyMap(
+                    abs_camera_matrix, distortion_coefficients, None, abs_camera_matrix, (w, h), cv2.CV_32FC1
+                )
+
+            return cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR)
 
         return undistort
     else:
