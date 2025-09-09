@@ -40,11 +40,7 @@ class DetectTags(Functor):
         self.__tag_dict, self.__data_for_unknown_tag = self.create_tag_dict(self.__tags)
 
     def detect_tag(self, tile):
-        string_tag = np_tag_to_string_tag(tile, self.__tag_shape)
-        tag_data = self.__tag_dict.get(string_tag, self.__data_for_unknown_tag)
-        if False and tag_data == 0:
-            quit()
-        return tag_data
+        return self.__tag_dict.get(tile.tobytes(), self.__data_for_unknown_tag)
 
     def create_empty_tags(self):
         return np.full(self.grid_shape, self.__data_for_unknown_tag, dtype=object)
@@ -57,14 +53,14 @@ class DetectTags(Functor):
                 data_for_unknown_tag = data
             else:
                 np_tag = string_tag_to_np_tag(string_tag, self.tag_shape)
-                tag_dict[string_tag] = data
+                tag_dict[np_tag.tobytes()] = data
                 if self.detect_rotations:
                     np_tag = np.rot90(np_tag)
-                    tag_dict[np_tag_to_string_tag(np_tag, self.tag_shape)] = data
+                    tag_dict[np_tag.tobytes()] = data
                     np_tag = np.rot90(np_tag)
-                    tag_dict[np_tag_to_string_tag(np_tag, self.tag_shape)] = data
+                    tag_dict[np_tag.tobytes()] = data
                     np_tag = np.rot90(np_tag)
-                    tag_dict[np_tag_to_string_tag(np_tag, self.tag_shape)] = data
+                    tag_dict[np_tag.tobytes()] = data
         return (tag_dict, data_for_unknown_tag)
 
     def __call__(self, image):
@@ -72,6 +68,7 @@ class DetectTags(Functor):
             image.shape[0] == self.grid_shape[0] * self.tag_shape[0]
             and image.shape[1] == self.grid_shape[1] * self.tag_shape[1]
             and len(image.shape) == 2
+            and image.dtype == np.uint8
         )
 
         binary_image = image // 255
@@ -88,10 +85,7 @@ class DetectTags(Functor):
 
 def string_tag_to_np_tag(string_tag, tag_shape):
     return np.fromstring(
-        ",".join(list(string_tag)),
-        np.uint8,
-        tag_shape[0] * tag_shape[1],
-        ",",
+        ",".join(list(string_tag)), dtype=np.uint8, count=tag_shape[0] * tag_shape[1], sep=","
     ).reshape(tag_shape)
 
 
