@@ -86,8 +86,9 @@ def create_img(
     flip_h,
     flip_v,
 ):
-    linear_transform = create_linear_transformer(rotate, flip_h, flip_v)
-    inverse_linear_transform = create_inverse_linear_transformer(rotate, flip_h, flip_v)
+    scale = (1.0, 1.0)
+    linear_transform = create_linear_transformer(scale, rotate, flip_h, flip_v)
+    inverse_linear_transform = create_inverse_linear_transformer(scale, rotate, flip_h, flip_v)
 
     img = np.full(img_size, BG_COLOR, np.uint8)
     img = inverse_linear_transform(img)

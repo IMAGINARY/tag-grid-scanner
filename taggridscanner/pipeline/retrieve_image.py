@@ -1,9 +1,21 @@
 import threading
 import time
 import cv2
+import logging
+
 
 from taggridscanner.aux.threading import WorkerThreadWithResult
-from taggridscanner.aux.utils import compatible
+
+
+logger = logging.getLogger(__name__)
+
+
+class WrongImageSizeError(Exception):
+    def __init__(self, expected_size, actual_size):
+        message = f"Expected image size {expected_size}, but got {actual_size}."
+        super().__init__(message)
+        self.expected_size = expected_size
+        self.actual_size = actual_size
 
 
 class RetrieveImage:
@@ -13,23 +25,28 @@ class RetrieveImage:
         api_preference=cv2.CAP_ANY,
         props=None,
         reconnection_delay=0.5,
-        scale=(1.0, 1.0),
-        smooth=0.0,
-        grayscale=True,
     ):
         super().__init__()
         if props is None:
             props = []
         self.id_or_filename = id_or_filename
+
         self.api_preference = api_preference
         self.reconnection_delay = reconnection_delay
-        self.__scale = None
-        self.__prescale = None
-        self.scale = scale  # this also initializes the prescaler
-        self.smooth = smooth
-        self.grayscale = grayscale
         self.props = props
         self.capture = cv2.VideoCapture()
+
+        def find_last_prop_value(prop_list, prop_id, default):
+            return next((v for (k, v) in reversed(props) if k == prop_id), default)
+
+        default_width = self.capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+        width = find_last_prop_value(self.props, cv2.CAP_PROP_FRAME_WIDTH, default_width)
+
+        default_height = self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        height = find_last_prop_value(self.props, cv2.CAP_PROP_FRAME_HEIGHT, default_height)
+
+        self.__size = (int(height), int(width))
+
         self.__last_reconnection_ts = float("-inf")
         self.__rlock = threading.RLock()
         self.__last_image = self.__read_and_block_when_disconnected()
@@ -37,12 +54,12 @@ class RetrieveImage:
         self.__worker.start()
 
     @property
+    def size(self):
+        return tuple(self.__size)
+
+    @property
     def rlock(self):
         return self.__rlock
-
-    def __read_from_capture(self):
-        ret, image = self.capture.read()
-        return ret, self.__prescale(image) if image is not None else image
 
     def read(self):
         fps = self.capture.get(cv2.CAP_PROP_FPS)
@@ -51,34 +68,36 @@ class RetrieveImage:
 
     def __read_and_block_when_disconnected(self):
         with self.rlock:
-            ret, image = self.__read_from_capture()
+            ret, image = self.capture.read()
             while not ret:
                 self.reconnect()
-                ret, image = self.__read_from_capture()
+                ret, image = self.capture.read()
+
+            image_size = (image.shape[0], image.shape[1])
+            if image_size != self.size:
+                m = f"Camera image size {image_size} does not match the expected size {self.size}. Aborting."
+                logger.error(m)
+                raise WrongImageSizeError(self.size, image_size)
+            else:
+                self.__last_image = image
+
             return image
 
     def __read(self):
         with self.rlock:
-            ret, image = self.__read_from_capture()
+            ret, image = self.capture.read()
             if not ret:
                 self.reconnect()
-                ret, image = self.__read_from_capture()
+                ret, image = self.capture.read()
 
             if ret:
-                if self.grayscale and len(image.shape) == 3:
-                    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-                if not compatible(self.__last_image, image) or self.smooth == 0.0:
-                    self.__last_image = image
+                image_size = (image.shape[0], image.shape[1])
+                if image_size != self.size:
+                    m = f"Camera image size {image_size} does not match the expected size {self.size}. Skipping frame."
+                    logger.warning(m)
                 else:
-                    cv2.addWeighted(
-                        self.__last_image,
-                        self.smooth,
-                        image,
-                        1.0 - self.smooth,
-                        0.0,
-                        dst=self.__last_image,
-                    )
+                    self.__last_image = image
+
             return self.__last_image
 
     def reconnect(self):
@@ -99,29 +118,7 @@ class RetrieveImage:
 
     @property
     def size(self):
-        with self.rlock:
-            w = int(self.capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-            h = int(self.capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            return (h, w)
-
-    @property
-    def scale(self):
-        return self.__scale
-
-    @property
-    def scaled_size(self):
-        with self.rlock:
-            scale = self.scale
-            size = self.size
-            sh = round(size[0] * scale[0])
-            sw = round(size[1] * scale[1])
-            return (sh, sw)
-
-    @scale.setter
-    def scale(self, scale):
-        assert len(scale) >= 2
-        self.__scale = scale
-        self.__prescale = create_prescaler(scale)
+        return tuple(self.__size)
 
     def __del(self):
         with self.rlock:
@@ -155,26 +152,4 @@ class RetrieveImage:
         return RetrieveImage(
             source,
             props=props,
-            scale=camera_config["scale"],
-            smooth=camera_config["smooth"],
-            grayscale=camera_config["grayscale"],
         )
-
-
-def create_prescaler(scale):
-    if list(scale) == [1.0, 1.0]:
-        return lambda img: img  # noop
-    else:
-
-        def prescaler(img):
-            prescaled_shape = (
-                round(img.shape[1] * scale[1]),
-                round(img.shape[0] * scale[0]),
-            )
-            return cv2.resize(
-                img,
-                prescaled_shape,
-                interpolation=cv2.INTER_AREA,
-            )
-
-        return prescaler
