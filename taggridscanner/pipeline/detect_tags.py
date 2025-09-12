@@ -4,12 +4,13 @@ from taggridscanner.aux.utils import Functor, split_image
 
 
 class DetectTags(Functor):
-    def __init__(self, grid_shape, tag_shape, tags, detect_rotations=True):
+    def __init__(self, grid_shape, tag_shape, tags, detect_rotations=True, rotate=0):
         super().__init__()
         self.grid_shape = grid_shape
         self.__tag_shape = tag_shape
         self.__tags = None
         self.__detect_rotations = detect_rotations
+        self.__rotate = rotate
         self.__tag_dict, self.__data_for_unknown_tag = self.create_tag_dict(tags)
 
     @property
@@ -53,6 +54,7 @@ class DetectTags(Functor):
                 data_for_unknown_tag = data
             else:
                 np_tag = string_tag_to_np_tag(string_tag, self.tag_shape)
+                np_tag = np.rot90(np_tag, k=self.__rotate // 90, axes=(0, 1))
                 tag_dict[np_tag.tobytes()] = data
                 if self.detect_rotations:
                     np_tag = np.rot90(np_tag)

@@ -117,12 +117,13 @@ class ScanWorker(Functor):
         tags = dict(filter(is_tag_key, self.config_with_defaults["tags"].items()))
         min_contrast = self.config_with_defaults["misc"]["minContrast"]
         detect_rotations = self.config_with_defaults["tags"]["autoRotate"]
+        rotate_tags = self.config_with_defaults["tags"]["rotate"]
 
         self.remove_gaps = RemoveGaps(grid_shape, tag_shape, rel_gap)
         self.crop_tile_pixels = CropTileCells(grid_shape, tag_shape, crop_factors)
         self.condense_tiles = CondenseTiles(grid_shape, tag_shape)
         self.threshold = Threshold(grid_shape, tag_shape, min_contrast)
-        self.detect_tags = DetectTags(grid_shape, tag_shape, tags, detect_rotations=detect_rotations)
+        self.detect_tags = DetectTags(grid_shape, tag_shape, tags, detect_rotations, rotate_tags)
         self.upscale = Upscale(10)
         self.draw_grid = DrawGrid(grid_shape, tag_shape, crop_factors)
         self.draw_grid_no_crop = DrawGrid(grid_shape, tag_shape, (1, 1))

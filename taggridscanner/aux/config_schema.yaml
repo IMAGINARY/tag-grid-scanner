@@ -400,6 +400,22 @@ properties:
           implementation specific and, therefore, undefined from the point of view of this file format definition.
         type: boolean
         default: true
+      rotate:
+        title: Angle of CCW rotation applied to the tag codes.
+        description: >
+          Angle of CCW rotation applied to the tag codes.
+          
+          When the IDs for different rotations of the same tag are explicitly defined in the tag dictionary, the ID will
+          usually contain some kind of reference to the tag orientation. The scanner sees the bottom of the tiles,
+          whereas users normally see the top of the tiles. The IDs are usually supposed to match the top view, not the
+          bottom view. The mapping between top and bottom view, however, depends on the axis around which tiles are
+          rotated (horizontally or vertically with respect to the region of interest) and is therefore ambiguous up to
+          rotation in 90 degree angles. This option can be used to compensate for this ambiguity without needing to
+          redefine all tag IDs in the configuration file.
+          
+          This option has no noticeable effect when [`autoRotate`](#tags_autoRotate) is enabled.
+        "$ref": "#/$defs/rotation"
+        default: 0
       unknown: { }
     patternProperties:
       ^(?!0+$|1+$)([01]+)$: { }
