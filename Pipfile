@@ -13,8 +13,8 @@ jsonpointer = "~=2.3"
 wrapt = "~=1.15"
 
 [dev-packages]
-json-schema-for-humans = "~=0.44"
 ruff = "~=0.12.10"
+json-schema-for-humans = "~=1.4.1"
 
 [requires]
 python_version = "3.9"

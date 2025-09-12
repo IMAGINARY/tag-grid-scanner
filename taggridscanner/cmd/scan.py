@@ -21,6 +21,7 @@ from taggridscanner.aux.utils import (
     Timeout,
 )
 from taggridscanner.aux.types import MarkerIdWithCenter, MarkerIdWithCorners, ROIMarkers
+from taggridscanner.pipeline.grayscale import Grayscale
 from taggridscanner.pipeline.condense_tiles import CondenseTiles
 from taggridscanner.pipeline.crop_tile_cells import CropTileCells
 from taggridscanner.pipeline.detect_tags import DetectTags
@@ -30,11 +31,13 @@ from taggridscanner.pipeline.draw_grid import DrawGrid
 from taggridscanner.pipeline.draw_roi_editor import DrawROIEditor
 from taggridscanner.pipeline.extract_roi import ExtractROI
 from taggridscanner.pipeline.retrieve_image import RetrieveImage
+from taggridscanner.pipeline.noop import Noop
 from taggridscanner.pipeline.notify import Notify
 from taggridscanner.pipeline.preprocess import Preprocess
 from taggridscanner.pipeline.track_markers import TrackMarkers
 from taggridscanner.pipeline.track_no_markers import TrackNoMarkers
 from taggridscanner.pipeline.remove_gaps import RemoveGaps
+from taggridscanner.pipeline.smooth import Smooth
 from taggridscanner.pipeline.threshold import Threshold
 from taggridscanner.pipeline.transform_tag_data import TransformTagData
 from taggridscanner.pipeline.upscale import Upscale
@@ -58,9 +61,11 @@ class ScanWorker(Functor):
         super().__init__(lambda: self.work())
         self.config_with_defaults = config_with_defaults
         self.retrieve_image = RetrieveImage.create_from_config(self.config_with_defaults)
+        self.grayscaleOrNoop = Grayscale() if self.config_with_defaults["camera"]["grayscale"] else Noop()
+        self.smooth = Smooth(self.config_with_defaults["camera"]["smooth"])
         self.preprocess = Preprocess.create_from_config(self.config_with_defaults)
 
-        self.h, self.w = self.retrieve_image.scaled_size
+        self.h, self.w = self.preprocess.result_size(self.retrieve_image.size)
         logger.debug("Scaled image size: width=%d, height=%d", self.w, self.h)
 
         if "marker" in self.config_with_defaults["dimensions"]:
@@ -249,7 +254,9 @@ class ScanWorker(Functor):
 
         if self.preprocessed_src is None or not freeze_input_image:
             src = self.retrieve_image()
-            self.preprocessed_src = self.preprocess(src)
+            color_or_grayscale_src = self.grayscaleOrNoop(src)
+            smoothed_src = self.smooth(color_or_grayscale_src)
+            self.preprocessed_src = self.preprocess(smoothed_src)
             needs_update = True
 
         copy_preprocessed_src = freeze_input_image or compute_visualization
