@@ -65,12 +65,6 @@ class Preprocess(Functor):
                 cv2.CV_32FC1,
             )
 
-            # FIXME: Order of the operations rotate, flip_h, flip_v, scale:
-            #        - apply scale first ((w, h) are wrt the camera image size)
-            #        - then apply flips (to correct mirrored camera images)
-            #        - then apply rotation (this is to orient the image correctly wrt a canonical coordinate system)
-            # TODO: Document order in the manual
-
             # flipping and rotations are done on the remap matrices to avoid resampling the image multiple times
 
             # flip horizontally
