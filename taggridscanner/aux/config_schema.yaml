@@ -189,6 +189,18 @@ properties:
             items:
               type: number
             default: [ 0, 0, 0, 0, 0 ]
+          alpha:
+            title: Free scaling parameter for undistortion.
+            description: >
+              Free scaling parameter for undistortion.
+              
+              
+              Setting the parameter to 0.0 means all pixels in the undistorted image are valid (minimally zoomed), 1.0
+              means all source pixels are retained (maximally zoomed out). As values > 0.0 will reduce the size of the
+              region of interest in the undistorted image, the [`scale`](#camera_scale) parameter should be increased
+              accordingly.
+            "$ref": "#/$defs/number01"
+            default: 0.0
         required: [ matrix, distortion ]
         default: { }
       filename:

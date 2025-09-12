@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 class Preprocess(Functor):
-    def __init__(self, rel_camera_matrix, distortion_coefficients, scale: tuple[float, float], rotate, flip_h, flip_v):
+    def __init__(
+        self, rel_camera_matrix, distortion_coefficients, alpha, scale: tuple[float, float], rotate, flip_h, flip_v
+    ):
         assert math.isfinite(scale[0]) and math.isfinite(scale[1])
         assert scale[0] > 0 and scale[1] > 0
         super().__init__()
@@ -25,6 +27,7 @@ class Preprocess(Functor):
         self.__rotate = rotate
         self.__flip_h = flip_h
         self.__flip_v = flip_v
+        self.__alpha = alpha
 
         self.operator = None
         self.last_image_shape = None
@@ -53,8 +56,13 @@ class Preprocess(Functor):
             in_res_matrix = np.array([[in_w, 0, 0], [0, in_h, 0], [0, 0, 1]])
             in_abs_camera_matrix = np.matmul(in_res_matrix, self.__rel_camera_matrix)
 
-            out_res_matrix = np.array([[out_w_before_rotation, 0, 0], [0, out_h_before_rotation, 0], [0, 0, 1]])
-            out_abs_camera_matrix = np.matmul(out_res_matrix, self.__rel_camera_matrix)
+            out_abs_camera_matrix, _ = cv2.getOptimalNewCameraMatrix(
+                in_abs_camera_matrix,
+                self.__distortion_coefficients,
+                (in_w, in_h),
+                self.__alpha,
+                (out_w_before_rotation, out_h_before_rotation),
+            )
 
             map_x, map_y = cv2.initUndistortRectifyMap(
                 in_abs_camera_matrix,
@@ -102,9 +110,10 @@ class Preprocess(Functor):
         camera_config = config["camera"]
 
         calibration_config = camera_config["calibration"]
-        rel_camera_matrix, distortion_coefficients = (
+        rel_camera_matrix, distortion_coefficients, alpha = (
             np.array(calibration_config["matrix"]),
             np.array(calibration_config["distortion"]),
+            calibration_config["alpha"],
         )
         scale, rotate, flip_h, flip_v = (
             camera_config["scale"],
@@ -112,4 +121,4 @@ class Preprocess(Functor):
             camera_config["flipH"],
             camera_config["flipV"],
         )
-        return Preprocess(rel_camera_matrix, distortion_coefficients, scale, rotate, flip_h, flip_v)
+        return Preprocess(rel_camera_matrix, distortion_coefficients, alpha, scale, rotate, flip_h, flip_v)
