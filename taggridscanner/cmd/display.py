@@ -4,13 +4,54 @@ import numpy as np
 import random
 
 from taggridscanner.pipeline.detect_tags import string_tag_to_np_tag
-from taggridscanner.pipeline.preprocess import (
-    create_linear_transformer,
-    create_inverse_linear_transformer,
-)
 
 GAP_COLOR = 256 / 2
 BG_COLOR = 256 / 4
+
+
+def get_rotate_code(degrees):
+    rotate_codes = {
+        0: None,
+        90: cv2.ROTATE_90_CLOCKWISE,
+        180: cv2.ROTATE_180,
+        270: cv2.ROTATE_90_COUNTERCLOCKWISE,
+    }
+    return rotate_codes.get(degrees)
+
+
+def get_flip_code(flip_h, flip_v):
+    if flip_v and not flip_h:
+        return 0
+    elif not flip_v and flip_h:
+        return 1
+    elif flip_v and flip_h:
+        return -1
+    else:
+        return None
+
+
+def create_linear_transformer(scale: tuple[float, float], rotate, flip_h, flip_v):
+    rotate_code = get_rotate_code(rotate)
+    flip_code = get_flip_code(flip_h, flip_v)
+
+    def linear_transformer(img):
+        if scale != (1.0, 1.0):
+            img = cv2.resize(img, None, fx=scale[1], fy=scale[0])
+        if rotate_code is not None:
+            img = cv2.rotate(img, rotate_code)
+        if flip_code is not None:
+            img = cv2.flip(img, flip_code)
+        return img
+
+    return linear_transformer
+
+
+def create_inverse_linear_transformer(scale: tuple[float, float], rotate, flip_h, flip_v):
+    i_scale = (1.0 / scale[0], 1.0 / scale[1])
+    i_rotate = (360 - rotate) % 360
+    i_flip_h = flip_h
+    i_flip_v = flip_v
+    return create_linear_transformer(i_scale, i_rotate, i_flip_h, i_flip_v)
 
 
 def rotate_tag(tag, rotation=0):

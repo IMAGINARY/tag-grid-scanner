@@ -19,23 +19,89 @@ class Preprocess(Functor):
             m = "Non-uniform scaling with one axis > 1.0 and the other < 1.0 may cause interpolation artifacts."
             logger.warning(m)
 
+        self.__rel_camera_matrix = rel_camera_matrix
+        self.__distortion_coefficients = distortion_coefficients
         self.__scale = scale
         self.__rotate = rotate
+        self.__flip_h = flip_h
+        self.__flip_v = flip_v
 
-        self.correct_distortion = create_distortion_corrector(rel_camera_matrix, distortion_coefficients)
-        self.linear_transform = create_linear_transformer(scale, rotate, flip_h, flip_v)
+        self.operator = None
+        self.last_image_shape = None
 
-    def __call__(self, image):
-        return self.linear_transform(self.correct_distortion(image))
-
-    def result_size(self, size: tuple[int, int]):
+    def result_size_before_rotation(self, size: tuple[int, int]):
         scaled_height = int(math.ceil(size[0] * self.__scale[0]))
         scaled_width = int(math.ceil(size[1] * self.__scale[1]))
+        return scaled_height, scaled_width
+
+    def result_size(self, size: tuple[int, int]):
+        scaled_height, scaled_width = self.result_size_before_rotation(size)
 
         if self.__rotate == 0 or self.__rotate == 180:
             return scaled_height, scaled_width
         else:
             return scaled_width, scaled_height
+
+    def create_operator(self, image_shape):
+        if self.__rel_camera_matrix is not None and self.__distortion_coefficients is not None:
+            in_h = image_shape[0]
+            in_w = image_shape[1]
+            out_size_before_rotation = self.result_size_before_rotation(image_shape)
+            out_h_before_rotation = out_size_before_rotation[0]
+            out_w_before_rotation = out_size_before_rotation[1]
+
+            in_res_matrix = np.array([[in_w, 0, 0], [0, in_h, 0], [0, 0, 1]])
+            in_abs_camera_matrix = np.matmul(in_res_matrix, self.__rel_camera_matrix)
+
+            out_res_matrix = np.array([[out_w_before_rotation, 0, 0], [0, out_h_before_rotation, 0], [0, 0, 1]])
+            out_abs_camera_matrix = np.matmul(out_res_matrix, self.__rel_camera_matrix)
+
+            map_x, map_y = cv2.initUndistortRectifyMap(
+                in_abs_camera_matrix,
+                self.__distortion_coefficients,
+                None,
+                out_abs_camera_matrix,
+                (out_w_before_rotation, out_h_before_rotation),
+                cv2.CV_32FC1,
+            )
+
+            # FIXME: Order of the operations rotate, flip_h, flip_v, scale:
+            #        - apply scale first ((w, h) are wrt the camera image size)
+            #        - then apply flips (to correct mirrored camera images)
+            #        - then apply rotation (this is to orient the image correctly wrt a canonical coordinate system)
+            # TODO: Document order in the manual
+
+            # flipping and rotations are done on the remap matrices to avoid resampling the image multiple times
+
+            # flip horizontally
+            if self.__flip_h:
+                map_x = np.fliplr(map_x)
+                map_y = np.fliplr(map_y)
+
+            # flip vertically
+            if self.__flip_v:
+                map_x = np.flipud(map_x)
+                map_y = np.flipud(map_y)
+
+            # rotate
+            map_x = np.rot90(map_x, k=self.__rotate // 90)
+            map_y = np.rot90(map_y, k=self.__rotate // 90)
+
+            # if one axis is scaled up and the other down, use cv2.INTER_AREA as a compromise
+            # (equivalent to cv2.INTER_NEAREST for the upscaled axis)
+            scale = self.__scale
+            interpolation_flag = cv2.INTER_LINEAR if scale[0] >= 1.0 and scale[1] >= 1.0 else cv2.INTER_AREA
+
+            return lambda img: cv2.remap(img, map_x, map_y, interpolation_flag)
+        else:
+            return lambda img: img
+
+    def __call__(self, image):
+        if self.last_image_shape != image.shape or self.operator is None:
+            self.operator = self.create_operator(image.shape)
+            self.last_image_shape = image.shape
+
+        return self.operator(image)
 
     @staticmethod
     def create_from_config(config):
@@ -53,69 +119,3 @@ class Preprocess(Functor):
             camera_config["flipV"],
         )
         return Preprocess(rel_camera_matrix, distortion_coefficients, scale, rotate, flip_h, flip_v)
-
-
-def get_rotate_code(degrees):
-    rotate_codes = {
-        0: None,
-        90: cv2.ROTATE_90_CLOCKWISE,
-        180: cv2.ROTATE_180,
-        270: cv2.ROTATE_90_COUNTERCLOCKWISE,
-    }
-    return rotate_codes.get(degrees)
-
-
-def get_flip_code(flip_h, flip_v):
-    if flip_v and not flip_h:
-        return 0
-    elif not flip_v and flip_h:
-        return 1
-    elif flip_v and flip_h:
-        return -1
-    else:
-        return None
-
-
-def create_linear_transformer(scale: tuple[float, float], rotate, flip_h, flip_v):
-    rotate_code = get_rotate_code(rotate)
-    flip_code = get_flip_code(flip_h, flip_v)
-
-    def linear_transformer(img):
-        if scale != 1.0:
-            img = cv2.resize(img, None, fx=scale[1], fy=scale[0])
-        if rotate_code is not None:
-            img = cv2.rotate(img, rotate_code)
-        if flip_code is not None:
-            img = cv2.flip(img, flip_code)
-        return img
-
-    return linear_transformer
-
-
-def create_inverse_linear_transformer(scale: tuple[float, float], rotate, flip_h, flip_v):
-    i_scale = (1.0 / scale[0], 1.0 / scale[1])
-    i_rotate = (360 - rotate) % 360
-    i_flip_h = flip_h
-    i_flip_v = flip_v
-    return create_linear_transformer(i_scale, i_rotate, i_flip_h, i_flip_v)
-
-
-def create_distortion_corrector(rel_camera_matrix, distortion_coefficients):
-    if rel_camera_matrix is not None and distortion_coefficients is not None:
-        h, w, map_x, map_y = None, None, None, None
-
-        def undistort(img):
-            nonlocal h, w, map_x, map_y
-            if (h, w) != img.shape[0:2] or map_x is None or map_y is None:
-                h, w = img.shape[0:2]
-                res_matrix = np.array([[w, 0, 0], [0, h, 0], [0, 0, 1]])
-                abs_camera_matrix = np.matmul(res_matrix, rel_camera_matrix)
-                map_x, map_y = cv2.initUndistortRectifyMap(
-                    abs_camera_matrix, distortion_coefficients, None, abs_camera_matrix, (w, h), cv2.CV_32FC1
-                )
-
-            return cv2.remap(img, map_x, map_y, cv2.INTER_LINEAR)
-
-        return undistort
-    else:
-        return lambda img: img
