@@ -102,7 +102,13 @@ type: object
 properties:
   camera:
     title: The configuration of the camera.
-    description: The configuration of the camera.
+    description: >
+      The configuration of the camera.
+      
+      
+      See the documentation of the individual properties for details. Geometric transformation are applied in the
+      following order: [Distortion correction](#camera_calibration), [Scaling](#camera_scale),
+      [Horizontal flipping](#camera_flipH), [Vertical flipping](#camera_flipV), [Rotation](#camera_rotate).
     type: object
     properties:
       id:
@@ -210,22 +216,6 @@ properties:
           - "$ref": "#/$defs/nonnegnumber"
           - "$ref": "#/$defs/nonnegvec2"
         default: 1.0
-      rotate:
-        title: Angle of rotation applied to the camera image.
-        description: >
-          Angle of rotation applied to the camera image.
-        "$ref": "#/$defs/rotation"
-        default: 0
-      flipV:
-        title: Whether to flip the camera image vertically.
-        description: >
-          Whether to flip the camera image vertically.
-
-
-          Flipping the image needs to be enabled if the camera is seeing the ROI via a mirror, which results in all tags
-          being flipped, too. Flipping the grid (but not the tags) can be reverted in the [`notify` section](#notify).
-        type: boolean
-        default: false
       flipH:
         title: Whether to flip the camera image horizontally.
         description: >
@@ -236,6 +226,22 @@ properties:
           being flipped, too. Flipping the grid (but not the tags) can be reverted in the [`notify` section](#notify).
         type: boolean
         default: false
+      flipV:
+        title: Whether to flip the camera image vertically.
+        description: >
+          Whether to flip the camera image vertically.
+
+
+          Flipping the image needs to be enabled if the camera is seeing the ROI via a mirror, which results in all tags
+          being flipped, too. Flipping the grid (but not the tags) can be reverted in the [`notify` section](#notify).
+        type: boolean
+        default: false
+      rotate:
+        title: Angle of rotation applied to the camera image.
+        description: >
+          Angle of rotation applied to the camera image.
+        "$ref": "#/$defs/rotation"
+        default: 0
       smooth:
         title: Blend the current image with previous images.
         description: >
