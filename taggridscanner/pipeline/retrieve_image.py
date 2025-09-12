@@ -36,6 +36,10 @@ class RetrieveImage:
         self.props = props
         self.capture = cv2.VideoCapture()
 
+        self.__last_reconnection_ts = float("-inf")
+        self.__rlock = threading.RLock()
+        self.reconnect()
+
         def find_last_prop_value(prop_list, prop_id, default):
             return next((v for (k, v) in reversed(props) if k == prop_id), default)
 
@@ -47,8 +51,6 @@ class RetrieveImage:
 
         self.__size = (int(height), int(width))
 
-        self.__last_reconnection_ts = float("-inf")
-        self.__rlock = threading.RLock()
         self.__last_image = self.__read_and_block_when_disconnected()
         self.__worker = WorkerThreadWithResult(lambda: self.__read())
         self.__worker.start()
